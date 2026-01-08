@@ -10,7 +10,6 @@ interface Community {
     slug: string;
     name: string;
     city: string | null;
-    // add other fields if needed
 }
 
 export default function CommunitySearchGrid({ communities }: { communities: Community[] }) {
@@ -25,20 +24,21 @@ export default function CommunitySearchGrid({ communities }: { communities: Comm
     return (
         <div>
             {/* Search Bar Section */}
-            <div className="max-w-xl mx-auto mb-12 relative">
-                <div className="relative">
-                    <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <div className="max-w-xl mx-auto mb-12 relative z-30">
+                <div className="relative shadow-lg rounded-full"> {/* Added shadow container */}
+                    <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 z-10" />
                     <input
                         type="text"
                         placeholder="Search by community name..."
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
-                        className="w-full pl-12 pr-12 py-4 rounded-full border border-gray-200 shadow-sm focus:ring-2 focus:ring-brand focus:border-transparent outline-none text-lg transition-all"
+                        // ADDED: bg-white to prevent transparency issues
+                        className="w-full pl-12 pr-12 py-4 rounded-full bg-white border border-gray-200 shadow-sm focus:ring-2 focus:ring-brand focus:border-transparent outline-none text-lg transition-all relative z-0"
                     />
                     {query && (
                         <button
                             onClick={() => setQuery('')}
-                            className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                            className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 z-10"
                         >
                             <X className="w-5 h-5" />
                         </button>

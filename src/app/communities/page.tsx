@@ -34,7 +34,8 @@ export default async function CommunitiesPage() {
             </div>
 
             {/* Content Area with Search Grid */}
-            <div className="max-w-7xl mx-auto px-6 -mt-8 relative z-20">
+            {/* UPDATED: Increased z-index to 30 to ensure search bar stays on top */}
+            <div className="max-w-7xl mx-auto px-6 -mt-8 relative z-30">
                 <CommunitySearchGrid communities={communities} />
             </div>
         </main>
