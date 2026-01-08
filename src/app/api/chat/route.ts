@@ -18,12 +18,11 @@ export async function POST(request: Request) {
         console.log(`\n--- NEW CHAT QUERY: "${message}" ---`);
 
         // --- STEP 0: FETCH VALID COMMUNITIES ---
-        // We fetch all active communities but EXCLUDE the "Laws" community from the detection list.
         const communityResult = await pool.query('SELECT name FROM communities WHERE is_active = true');
 
         const validCommunities = communityResult.rows
             .map(row => row.name)
-            .filter(name => name !== GLOBAL_LAWS_COMMUNITY) // <--- HIDE GLOBAL COMMUNITY
+            .filter(name => name !== GLOBAL_LAWS_COMMUNITY)
             .join(", ");
 
         // --- STEP 1: CONTEXTUAL ANALYSIS (The Detective) ---
@@ -32,9 +31,15 @@ export async function POST(request: Request) {
             generationConfig: { responseMimeType: "application/json" }
         });
 
-        const historyText = history
-            ? history.map((h: any) => `${h.role === 'user' ? 'User' : 'Assistant'}: ${h.text}`).join('\n')
-            : `User: ${message}`;
+        // FIXED: Construct history to ALWAYS include the current message
+        const historyLines = history
+            ? history.map((h: any) => `${h.role === 'user' ? 'User' : 'Assistant'}: ${h.text}`)
+            : [];
+
+        // Append the current user message to the end of the history
+        historyLines.push(`User: ${message}`);
+
+        const historyText = historyLines.join('\n');
 
         const analyzerPrompt = `
     You are a conversation analyzer for a Property Management AI.
@@ -81,7 +86,9 @@ export async function POST(request: Request) {
         // --- STEP 2: DECISION TREE ---
 
         if (!analysis.has_community || !analysis.has_role) {
-            return NextResponse.json({ reply: analysis.missing_info_response });
+            // Fallback: If AI returns null response for missing info, provide a default
+            const reply = analysis.missing_info_response || "Could you please clarify which community you are asking about, and whether you are an owner or tenant?";
+            return NextResponse.json({ reply });
         }
 
         // --- STEP 3: DATABASE SEARCH (10/5 SPLIT) ---
@@ -92,7 +99,6 @@ export async function POST(request: Request) {
         const embedding = embeddingResult.embedding.values;
 
         // QUERY A: Search ONLY the User's Community (Top 10)
-        // Increased from 5 to 10 to ensure we catch all relevant local rules
         const localQuery = pool.query(
             `SELECT cd.content, c.name as community_name, (cd.embedding <=> $1::vector) as distance
              FROM community_docs cd
@@ -104,7 +110,6 @@ export async function POST(request: Request) {
         );
 
         // QUERY B: Search ONLY the Global Laws (Top 5)
-        // Kept at 5 to provide legal context without overwhelming the prompt
         const globalQuery = pool.query(
             `SELECT cd.content, c.name as community_name, (cd.embedding <=> $1::vector) as distance
              FROM community_docs cd
@@ -118,7 +123,7 @@ export async function POST(request: Request) {
         // Run both in parallel
         const [localResult, globalResult] = await Promise.all([localQuery, globalQuery]);
 
-        // Combine results (up to 15 chunks total)
+        // Combine results
         const allRows = [...localResult.rows, ...globalResult.rows];
 
         // Format for the AI
