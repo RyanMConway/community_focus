@@ -12,32 +12,32 @@ export default function ServicesPage() {
         {
             title: "Administrative Services",
             description: "Effective management requires proactive leadership. We work directly with your Board and Committees to ensure your property is maintained to the highest standards. Our team handles the day-to-day operational duties unique to your HOA, COA, or POA, enforcing governing documents with consistency and fairness.",
-            icon: <Briefcase className="w-8 h-8 text-brand-DEFAULT" />,
+            icon: <Briefcase className="w-8 h-8 text-brand" />,
         },
         {
             title: "Financial Transparency",
             description: "We maintain an absolute open-book policy. Our team produces clear, concise financial reports so every board member understands exactly how community funds are being utilized. We also consult with local accountants to review financials, ensuring your community makes the best use of its capital reserves.",
-            icon: <Calculator className="w-8 h-8 text-brand-DEFAULT" />,
+            icon: <Calculator className="w-8 h-8 text-brand" />,
         },
         {
             title: "Web & Communication",
             description: "Modern communication is key to a happy community. We provide a secure, specific web portal for your association that allows homeowners to make payments by credit card or e-check instantly. We prioritize email communication to ensure immediate responses to homeowners, board members, and vendors.",
-            icon: <Monitor className="w-8 h-8 text-brand-DEFAULT" />,
+            icon: <Monitor className="w-8 h-8 text-brand" />,
         },
         {
             title: "Facility Management",
             description: "With over 15 years of experience managing pools, tennis courts, and clubhouses, we know how to protect your assets. We supervise the operations of your recreational facilities to ensure quality programs and services are maintained, promoting the long-term value and wellness of your neighborhood.",
-            icon: <Warehouse className="w-8 h-8 text-brand-DEFAULT" />,
+            icon: <Warehouse className="w-8 h-8 text-brand" />,
         },
         {
             title: "Project Management",
             description: "From minor repairs to major renovations, we oversee construction projects from start to finish. We keep the Board of Directors informed at every stage, ensuring vendors perform to contract specifications. We assist associations in developing long-term capital plans to preserve property values.",
-            icon: <ClipboardCheck className="w-8 h-8 text-brand-DEFAULT" />,
+            icon: <ClipboardCheck className="w-8 h-8 text-brand" />,
         },
         {
             title: "Custom Solutions",
             description: "Every community is unique. In addition to our core services, we are flexible and willing to broaden our scope to meet your specific needs. Whether you need specialized consulting or unique on-site services, Community Focus is ready to help bring your association into focus.",
-            icon: <PlusCircle className="w-8 h-8 text-brand-DEFAULT" />,
+            icon: <PlusCircle className="w-8 h-8 text-brand" />,
         }
     ];
 
@@ -64,9 +64,9 @@ export default function ServicesPage() {
                             key={index}
                             className="bg-white p-8 md:p-10 rounded-2xl shadow-sm hover:shadow-card hover:-translate-y-1 transition-all duration-300 border border-slate-100 flex flex-col items-start h-full group"
                         >
-                            <div className="bg-blue-50 p-4 rounded-xl mb-6 group-hover:bg-brand-DEFAULT group-hover:text-white transition-colors">
+                            <div className="bg-blue-50 p-4 rounded-xl mb-6 group-hover:bg-brand group-hover:text-white transition-colors">
                                 {/* Clone the icon to apply hover styles if needed, or rely on CSS */}
-                                <div className="text-brand-DEFAULT group-hover:text-white transition-colors">
+                                <div className="text-brand group-hover:text-white transition-colors">
                                     {service.icon}
                                 </div>
                             </div>
@@ -83,7 +83,7 @@ export default function ServicesPage() {
 
             {/* CTA Section */}
             <div className="container mx-auto px-4 pb-24">
-                <div className="bg-brand-DEFAULT text-white rounded-3xl p-12 text-center shadow-glow relative overflow-hidden">
+                <div className="bg-brand text-white rounded-3xl p-12 text-center shadow-glow relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-64 h-64 bg-white opacity-10 rounded-full -translate-x-1/2 -translate-y-1/2"></div>
 
                     <div className="relative z-10">
