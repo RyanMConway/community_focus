@@ -117,7 +117,7 @@ export async function POST(req: Request) {
         if (!text?.trim()) return NextResponse.json({ error: "No text found." }, { status: 400 });
 
         const cleanFullText = text.replace(/\s+/g, " ").trim();
-        const chunks = smartChunking(cleanFullText, 2000, 200);
+        const chunks = smartChunking(cleanFullText, 1000, 200);
         console.log(`[Embed] Created ${chunks.length} chunks. Saving to DB...`);
 
         const embedModel = genAI.getGenerativeModel({ model: "text-embedding-004" });

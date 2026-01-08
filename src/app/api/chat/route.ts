@@ -4,6 +4,7 @@ import pool from '@/lib/db';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
+// Define the name of the "Global" community that holds the laws
 const GLOBAL_LAWS_COMMUNITY = "North Carolina General Statutes";
 
 export async function POST(request: Request) {
@@ -17,11 +18,12 @@ export async function POST(request: Request) {
         console.log(`\n--- NEW CHAT QUERY: "${message}" ---`);
 
         // --- STEP 0: FETCH VALID COMMUNITIES ---
+        // We fetch all active communities but EXCLUDE the "Laws" community from the detection list.
         const communityResult = await pool.query('SELECT name FROM communities WHERE is_active = true');
 
         const validCommunities = communityResult.rows
             .map(row => row.name)
-            .filter(name => name !== GLOBAL_LAWS_COMMUNITY)
+            .filter(name => name !== GLOBAL_LAWS_COMMUNITY) // <--- HIDE GLOBAL COMMUNITY
             .join(", ");
 
         // --- STEP 1: CONTEXTUAL ANALYSIS (The Detective) ---
@@ -42,14 +44,16 @@ export async function POST(request: Request) {
 
     **COMMUNITY ALIASES / MAPPINGS:**
     - "4100" -> "4100 Five Oaks"
-    - "Five Oaks" -> "4100 Five Oaks" (ONLY if "Five Oaks Lakeside" is NOT in the valid list.)
+    - "Five Oaks" -> "4100 Five Oaks" (ONLY if "Five Oaks Lakeside" is NOT in the valid list. Otherwise, treat as ambiguous.)
     
     **CONVERSATION HISTORY:**
     ${historyText}
     
     **TASK:**
     1. Identify the User's **Community/HOA**.
-       - **AMBIGUITY CHECK:** If the user provides a name that matches MULTIPLE valid communities (e.g. "Farrington"), ask for clarification.
+       - **AMBIGUITY CHECK:** If the user provides a name (e.g., "Farrington") that is a partial match for MULTIPLE valid communities:
+         - Set "has_community": false.
+         - Set "missing_info_response": "We manage both **[Option A]** and **[Option B]**. Which one are you referring to?"
        - **EXACT MATCH:** If the input matches exactly one valid name or alias, accept it.
     
     2. Identify the User's **Role** (Homeowner, Tenant, Board Member).
@@ -146,6 +150,11 @@ export async function POST(request: Request) {
       2. If the documents don't have the answer, state that clearly.
       3. Tailor the tone to the user's role.
       4. Ensure the answer applies to **${analysis.community_name}**.
+      
+      **CRITICAL DISTINCTIONS (READ CAREFULLY):**
+      - **SOLAR PANELS vs. FANS:** If the user asks about "Solar Panels" (photovoltaic systems) but the community documents ONLY mention "Solar Attic Fans" or "Solar Tubes," you MUST acknowledge this gap.
+        - SAY: "The community documents specifically address solar attic fans, but do not mention solar panels."
+        - THEN: Refer to the NC General Statutes for rights regarding Solar Panels.
       
       **LEGAL HIERARCHY:**
       - Documents labeled "[SOURCE: ${GLOBAL_LAWS_COMMUNITY}]" apply to **ALL** communities.
