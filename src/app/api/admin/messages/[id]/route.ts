@@ -4,10 +4,10 @@ import pool from '@/lib/db';
 // DELETE a message
 export async function DELETE(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> } // <--- FIXED TYPE
 ) {
     try {
-        const { id } = await params; // Await params in Next.js 15+
+        const { id } = await params;
         const client = await pool.connect();
 
         await client.query('DELETE FROM contact_messages WHERE id = $1', [id]);
@@ -23,7 +23,7 @@ export async function DELETE(
 // PATCH (Update) status (e.g., mark as 'read')
 export async function PATCH(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> } // <--- FIXED TYPE
 ) {
     try {
         const { id } = await params;

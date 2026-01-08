@@ -1,46 +1,14 @@
 import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
 
-// DELETE a message
-export async function DELETE(
-    request: Request,
-    { params }: { params: Promise<{ id: string }> } // <--- FIXED TYPE
-) {
+export async function GET() {
     try {
-        const { id } = await params;
         const client = await pool.connect();
-
-        await client.query('DELETE FROM contact_messages WHERE id = $1', [id]);
-
+        // Fetch latest messages first
+        const { rows } = await client.query('SELECT * FROM contact_messages ORDER BY created_at DESC');
         client.release();
-        return NextResponse.json({ success: true });
+        return NextResponse.json(rows);
     } catch (error) {
-        console.error('Delete Error:', error);
-        return NextResponse.json({ error: 'Failed to delete' }, { status: 500 });
-    }
-}
-
-// PATCH (Update) status (e.g., mark as 'read')
-export async function PATCH(
-    request: Request,
-    { params }: { params: Promise<{ id: string }> } // <--- FIXED TYPE
-) {
-    try {
-        const { id } = await params;
-        const body = await request.json();
-        const { status } = body; // e.g., 'read', 'archived'
-
-        const client = await pool.connect();
-
-        await client.query(
-            'UPDATE contact_messages SET status = $1 WHERE id = $2',
-            [status, id]
-        );
-
-        client.release();
-        return NextResponse.json({ success: true });
-    } catch (error) {
-        console.error('Update Error:', error);
-        return NextResponse.json({ error: 'Failed to update' }, { status: 500 });
+        return NextResponse.json({ error: 'Failed' }, { status: 500 });
     }
 }
