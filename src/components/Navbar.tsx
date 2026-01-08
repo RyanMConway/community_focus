@@ -39,6 +39,9 @@ export default function Navbar() {
                     <Link href="/services" className="text-slate-600 hover:text-brand font-medium transition-colors text-[15px]">
                         Services
                     </Link>
+                    <Link href="/resources" className="text-slate-600 hover:text-brand font-medium transition-colors">
+                        Resources
+                    </Link>
 
                     {/* UPDATED: Uses ShinyButton for Desktop */}
                     <ShinyButton href="/contact" className="py-2.5 px-6 text-sm">

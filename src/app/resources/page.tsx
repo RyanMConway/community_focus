@@ -1,15 +1,34 @@
 "use client";
 
-import { FileText, Tool, DollarSign, BookOpen, Users, ExternalLink, Scale } from 'lucide-react';
+import { Wrench, DollarSign, BookOpen, Users, ExternalLink, Scale } from 'lucide-react';
 import Reveal from '@/components/Reveal';
 
 export default function ResourcesPage() {
 
     // Helper to open the chat bot
     const openChatBot = () => {
-        const chatButton = document.querySelector('button[aria-label="Open Chat"]');
-        if (chatButton instanceof HTMLElement) chatButton.click();
+        const chatButton = document.getElementById('chat-trigger');
+        if (chatButton) chatButton.click();
     };
+
+    // Real Book Data (Links removed)
+    const books = [
+        {
+            title: "Your Home is Your Castle",
+            author: "Richard S. Blumenfeld",
+            desc: "A practical guide to understanding HOA covenants and your rights as a homeowner."
+        },
+        {
+            title: "The Homeowners Association Manual",
+            author: "Peter M. Dunbar",
+            desc: "A comprehensive reference used by board members and managers nationwide."
+        },
+        {
+            title: "Working With Your HOA",
+            author: "Marlene M. Coleman",
+            desc: "A guide to effective community living, dispute resolution, and volunteering."
+        }
+    ];
 
     return (
         <main className="min-h-screen pt-24 pb-20 bg-slate-50">
@@ -50,7 +69,7 @@ export default function ResourcesPage() {
                         <a href="https://cfnc.cincwebaxis.com/workorders" target="_blank" rel="noreferrer" className="block group">
                             <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-xl transition-all hover:-translate-y-1 h-full">
                                 <div className="w-14 h-14 bg-blue-50 rounded-xl flex items-center justify-center mb-6 group-hover:bg-blue-100 transition-colors">
-                                    <Tool className="w-7 h-7 text-blue-600" />
+                                    <Wrench className="w-7 h-7 text-blue-600" />
                                 </div>
                                 <h3 className="text-xl font-bold text-slate-800 mb-2">Maintenance Request</h3>
                                 <p className="text-slate-500 mb-4">Report an issue in your common area or submit a work order for HOA repairs.</p>
@@ -70,7 +89,7 @@ export default function ResourcesPage() {
                                     <Scale className="w-7 h-7 text-purple-600" />
                                 </div>
                                 <h3 className="text-xl font-bold text-slate-800 mb-2">NC Statutes & Rules</h3>
-                                <p className="text-slate-500 mb-4">Have a legal question? Our AI Assistant can interpret NC General Statutes (47F/47C) for you.</p>
+                                <p className="text-slate-500 mb-4">Questions about community rules? Our AI Assistant can help you navigate the NC General Statutes (47F/47C).</p>
                                 <span className="text-brand font-bold text-sm flex items-center gap-2">
                                     Ask the AI Assistant <Users className="w-4 h-4" />
                                 </span>
@@ -105,20 +124,22 @@ export default function ResourcesPage() {
                         </div>
                     </div>
 
-                    {/* Recommended Reading */}
+                    {/* Recommended Reading (Static List) */}
                     <div>
                         <h2 className="text-2xl font-serif font-bold text-slate-800 mb-6 flex items-center gap-3">
                             <BookOpen className="w-6 h-6 text-brand" /> Recommended Reading
                         </h2>
                         <div className="space-y-4">
-                            {[
-                                { title: "Your Home is Your Castle", author: "Richard S. Blumenfeld", desc: "A guide to understanding HOA management dynamics." },
-                                { title: "The Homeowners Association Manual", author: "Peter M. Dunbar", desc: "A comprehensive reference for board members and owners." },
-                                { title: "Working With Your HOA", author: "Marlene M. Coleman", desc: "A guide to effective community living and conflict resolution." }
-                            ].map((book, i) => (
-                                <div key={i} className="bg-white p-5 rounded-xl shadow-sm border border-slate-100 flex gap-4 items-start">
-                                    <div className="w-12 h-16 bg-slate-200 rounded-md flex-shrink-0"></div>
-                                    <div>
+                            {books.map((book, i) => (
+                                <div
+                                    key={i}
+                                    className="bg-white p-5 rounded-xl shadow-sm border border-slate-100 flex gap-4 items-start"
+                                >
+                                    {/* Book Icon */}
+                                    <div className="w-12 h-16 bg-slate-100 rounded-md flex items-center justify-center flex-shrink-0 text-slate-300">
+                                        <BookOpen className="w-6 h-6" />
+                                    </div>
+                                    <div className="flex-1">
                                         <h4 className="font-bold text-slate-800">{book.title}</h4>
                                         <p className="text-xs text-brand-accent uppercase font-bold tracking-wider mb-1">{book.author}</p>
                                         <p className="text-sm text-slate-500">{book.desc}</p>

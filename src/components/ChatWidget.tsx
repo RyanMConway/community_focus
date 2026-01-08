@@ -5,16 +5,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, X, Send, Sparkles, User, Bot } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
-// Define message type
-type ChatMessage = {
-    role: 'user' | 'bot';
-    text: string;
-};
-
 export default function ChatWidget() {
     const [isOpen, setIsOpen] = useState(false);
-    const [messages, setMessages] = useState<ChatMessage[]>([
-        { role: 'bot', text: "Hello! I am the Community Focus Assistant. To better help you, could you please tell me which **Community** you are with and whether you are a **Homeowner**, **Tenant**, or **Board Member**?" }
+    const [messages, setMessages] = useState<{role: 'user' | 'bot', text: string}[]>([
+        { role: 'bot', text: "Hello! I am the Community Focus AI Assistant. I can answer questions about your specific community's rules, amenities, and payments. How can I help?" }
     ]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
@@ -30,11 +24,7 @@ export default function ChatWidget() {
         if (!input.trim()) return;
 
         const userMsg = input;
-
-        // Add user message immediately
-        const newHistory = [...messages, { role: 'user', text: userMsg } as ChatMessage];
-        setMessages(newHistory);
-
+        setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
         setInput('');
         setLoading(true);
 
@@ -42,11 +32,7 @@ export default function ChatWidget() {
             const res = await fetch('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                // SEND FULL HISTORY so the bot has memory
-                body: JSON.stringify({
-                    message: userMsg,
-                    history: newHistory
-                })
+                body: JSON.stringify({ message: userMsg, history: messages })
             });
 
             const data = await res.json();
@@ -64,7 +50,8 @@ export default function ChatWidget() {
     };
 
     return (
-        <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end font-sans">
+        // Increased z-index to z-[100] to ensure it sits above everything
+        <div className="fixed bottom-6 right-6 z-[100] flex flex-col items-end font-sans">
 
             {/* CHAT WINDOW */}
             <AnimatePresence>
@@ -74,10 +61,11 @@ export default function ChatWidget() {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 20, scale: 0.95 }}
                         transition={{ duration: 0.2 }}
-                        className="mb-4 w-[90vw] md:w-[400px] h-[500px] bg-white rounded-2xl shadow-2xl border border-slate-100 flex flex-col overflow-hidden"
+                        // ADDED: max-h-[calc(100vh-120px)] prevents the top from being cut off
+                        className="mb-4 w-[90vw] md:w-[400px] h-[500px] max-h-[calc(100vh-120px)] bg-white rounded-2xl shadow-2xl border border-slate-100 flex flex-col overflow-hidden"
                     >
                         {/* Header */}
-                        <div className="bg-brand text-white p-4 flex justify-between items-center shadow-md">
+                        <div className="bg-brand text-white p-4 flex justify-between items-center shadow-md flex-shrink-0">
                             <div className="flex items-center gap-2">
                                 <div className="bg-white/20 p-1.5 rounded-lg">
                                     <Sparkles className="w-4 h-4 text-white" />
@@ -134,12 +122,12 @@ export default function ChatWidget() {
                         </div>
 
                         {/* Input Area */}
-                        <form onSubmit={handleSubmit} className="p-4 bg-white border-t border-slate-100 flex gap-2">
+                        <form onSubmit={handleSubmit} className="p-4 bg-white border-t border-slate-100 flex gap-2 flex-shrink-0">
                             <input
                                 type="text"
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
-                                placeholder="Type your message..."
+                                placeholder="Ask about rules, parking, etc..."
                                 className="flex-1 bg-slate-100 border-none outline-none focus:ring-2 focus:ring-brand/20 rounded-full px-4 py-3 text-sm text-slate-800 placeholder:text-slate-400"
                             />
                             <button
@@ -156,6 +144,7 @@ export default function ChatWidget() {
 
             {/* TOGGLE BUTTON */}
             <motion.button
+                id="chat-trigger"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setIsOpen(!isOpen)}
