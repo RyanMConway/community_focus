@@ -17,7 +17,7 @@ async function getCommunity(slug: string) {
     }
 }
 
-// FIXED TYPE HERE vvv
+// FIXED TYPE DEFINITION HERE vvv
 export default async function CommunityPage({ params }: { params: Promise<{ slug: string }> }) {
     const { slug } = await params;
     const community = await getCommunity(slug);
@@ -33,7 +33,9 @@ export default async function CommunityPage({ params }: { params: Promise<{ slug
             <div className="relative h-64 md:h-80 bg-brand-dark">
                 <div className="absolute inset-0 bg-black/50 z-10"></div>
                 {/* You can make this image dynamic later using community.photo_url */}
-                <div className="absolute inset-0 z-0 bg-brand-dark"></div>
+                <div className="absolute inset-0 z-0 bg-brand-dark">
+                    {/* If you have a real image, use Next/Image here */}
+                </div>
 
                 <div className="relative z-20 container mx-auto px-4 h-full flex flex-col justify-end pb-8 text-white">
                     <Link href="/" className="inline-flex items-center text-blue-200 hover:text-white mb-4 transition-colors">

@@ -28,7 +28,7 @@ export async function PATCH(
     try {
         const { id } = await params;
         const body = await request.json();
-        const { status } = body;
+        const { status } = body; // e.g., 'read', 'archived'
 
         const client = await pool.connect();
 
