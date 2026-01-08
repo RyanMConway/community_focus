@@ -31,14 +31,12 @@ export async function POST(request: Request) {
             generationConfig: { responseMimeType: "application/json" }
         });
 
-        // FIXED: Construct history to ALWAYS include the current message
+        // Construct history to ALWAYS include the current message
         const historyLines = history
             ? history.map((h: any) => `${h.role === 'user' ? 'User' : 'Assistant'}: ${h.text}`)
             : [];
 
-        // Append the current user message to the end of the history
         historyLines.push(`User: ${message}`);
-
         const historyText = historyLines.join('\n');
 
         const analyzerPrompt = `
@@ -62,8 +60,9 @@ export async function POST(request: Request) {
        - **EXACT MATCH:** If the input matches exactly one valid name or alias, accept it.
     
     2. Identify the User's **Role** (Homeowner, Tenant, Board Member).
+       - If not explicitly stated, return null (we will handle the default in code).
     
-    3. Identify the User's **Core Question** (look back in history if needed).
+    3. Identify the User's **Core Question**.
 
     **OUTPUT JSON:**
     {
@@ -73,7 +72,7 @@ export async function POST(request: Request) {
       "user_role": "extracted role or null",
       "core_question": "The user's original question",
       "search_query": "Query for the database",
-      "missing_info_response": "If info is missing or ambiguous, ask a specific follow-up."
+      "missing_info_response": "If community is missing, ask for it specifically."
     }
     `;
 
@@ -83,11 +82,19 @@ export async function POST(request: Request) {
 
         console.log("Analysis:", analysis);
 
-        // --- STEP 2: DECISION TREE ---
+        // --- STEP 2: DECISION TREE (FRICTION REDUCTION) ---
 
-        if (!analysis.has_community || !analysis.has_role) {
-            // Fallback: If AI returns null response for missing info, provide a default
-            const reply = analysis.missing_info_response || "Could you please clarify which community you are asking about, and whether you are an owner or tenant?";
+        // FIX: If we have the community but lack the role, DEFAULT to "Homeowner" and PROCEED.
+        // This prevents the bot from stopping just to ask "Are you an owner?"
+        if (analysis.has_community && !analysis.has_role) {
+            console.log("Community found but role missing. Defaulting to 'Homeowner' to reduce friction.");
+            analysis.has_role = true;
+            analysis.user_role = "Homeowner";
+        }
+
+        // Only stop if we genuinely don't know the community
+        if (!analysis.has_community) {
+            const reply = analysis.missing_info_response || "Could you please tell me which community you are asking about?";
             return NextResponse.json({ reply });
         }
 
@@ -120,13 +127,9 @@ export async function POST(request: Request) {
             [JSON.stringify(embedding), GLOBAL_LAWS_COMMUNITY]
         );
 
-        // Run both in parallel
         const [localResult, globalResult] = await Promise.all([localQuery, globalQuery]);
-
-        // Combine results
         const allRows = [...localResult.rows, ...globalResult.rows];
 
-        // Format for the AI
         const contextText = allRows.map(row =>
             `[SOURCE: ${row.community_name}]\n${row.content}`
         ).join("\n\n");
@@ -137,7 +140,6 @@ export async function POST(request: Request) {
 
         const chatModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
-        // --- UPDATED FINAL PROMPT: "PLAIN ENGLISH" & SPECIFIC STATUTE EDITION ---
         const answerPrompt = `
       You are the Community Focus Assistant, a helpful and clear AI for property management.
       
@@ -152,24 +154,19 @@ export async function POST(request: Request) {
       "${analysis.core_question}"
       
       **TONE & STYLE GUIDELINES:**
-      1. **Speak Plainly:** Do not just copy-paste legal text. Read the statute/rule, understand it, and explain it in simple, everyday language.
-      2. **Be Direct:** Answer the question first ("Yes, you can..." or "No, but..."), then explain why.
-      3. **Avoid Jargon:** If you must use a legal term (like "easement" or "indemnification"), briefly explain what it means.
-      4. **Summarize:** If a rule is long, give a bulleted summary of the key points.
+      1. **Speak Plainly:** Do not just copy-paste legal text. Explain it in simple, everyday language.
+      2. **Be Direct:** Answer the question first ("Yes," "No," "It depends..."), then explain why.
+      3. **Avoid Jargon:** Briefly explain legal terms if used.
+      4. **Summarize:** Use bullet points for long lists or rules.
       
       **CRITICAL DISTINCTIONS:**
-      - **SOLAR PANELS vs. FANS:** If the local docs only mention "Solar Fans," state that clearly: "Your community rules only talk about solar fans, not panels." Then, refer to NC General Statute 22B-20 regarding your rights to install panels.
+      - **SOLAR PANELS vs. FANS:** If the local docs only mention "Solar Fans," state that clearly, then refer to NC General Statute 22B-20 regarding panels.
       
       **LEGAL HIERARCHY:**
-      - State Laws (NC General Statutes) override local rules. If a local rule conflicts with a state law, explain that the state law typically takes precedence.
+      - State Laws (NC General Statutes) override local rules.
       
-      **EMERGENCY PROTOCOL (CINC WORK ORDER):**
-      If the user's issue meets BOTH criteria:
-      (A) It is an **emergency** (e.g., active water leak, fire hazard).
-      (B) The official documents indicate it is the **HOA's responsibility**.
-      
-      ...THEN append this link:
-      "\n\n🚨 **This appears to be an urgent HOA matter. Please submit an Emergency Work Order immediately:** [Submit CINC Work Order](https://placeholder.cinc.com/work-order)"
+      **EMERGENCY PROTOCOL:**
+      If issue is (A) Emergency AND (B) HOA Responsibility -> Append CINC Link.
     `;
 
         const finalResult = await chatModel.generateContent(answerPrompt);
