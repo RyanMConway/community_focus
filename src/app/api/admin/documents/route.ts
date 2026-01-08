@@ -7,20 +7,27 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 // --- HELPERS ---
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-async function generateWithRetry(operation: () => Promise<any>, retries = 3) {
+// UPDATED: Robust Retry Logic with Exponential Backoff
+async function generateWithRetry(operation: () => Promise<any>, retries = 5) {
     for (let i = 0; i < retries; i++) {
         try {
             return await operation();
         } catch (error: any) {
-            if ((error.status === 429 || error.message?.includes('429')) && i < retries - 1) {
-                const waitTime = 5000 * (i + 1);
-                console.log(`[Rate Limit] Hit 429. Pausing for ${waitTime / 1000}s...`);
+            // Check for 429 (Rate Limit) or 503 (Service Overload)
+            if ((error.status === 429 || error.status === 503 || error.message?.includes('429')) && i < retries - 1) {
+                // Wait 10s, 20s, 40s, 80s... (+ random jitter to prevent thundering herd)
+                const baseWait = 10000 * Math.pow(2, i);
+                const jitter = Math.random() * 2000;
+                const waitTime = baseWait + jitter;
+
+                console.log(`[Rate Limit] Hit 429/503. Pausing for ${Math.round(waitTime / 1000)}s before retry ${i + 1}/${retries}...`);
                 await delay(waitTime);
                 continue;
             }
             throw error;
         }
     }
+    throw new Error("Max retries exceeded. API is too busy.");
 }
 
 // --- SMART CHUNKER ---
@@ -43,7 +50,7 @@ function smartChunking(text: string, chunkSize = 2000, overlap = 200): string[] 
     return chunks;
 }
 
-// GET: List documents (Updated to JOIN with communities table)
+// GET: List documents
 export async function GET() {
     try {
         const result = await pool.query(`
@@ -57,8 +64,8 @@ export async function GET() {
         const docs = result.rows.map(row => ({
             id: row.filename,
             filename: row.filename,
-            community_id: row.community_id, // Added for filtering
-            community_name: row.real_community_name, // Real name now!
+            community_id: row.community_id,
+            community_name: row.real_community_name,
             chunk_count: row.chunk_count,
             created_at: row.created_at
         }));
@@ -78,6 +85,7 @@ export async function POST(req: Request) {
 
         console.log(`[Upload] Starting: ${file.name}`);
 
+        // Clean up old version if exists
         await pool.query('DELETE FROM community_docs WHERE community_id = $1 AND filename = $2', [communityId, file.name]);
 
         const arrayBuffer = await file.arrayBuffer();
@@ -91,6 +99,7 @@ export async function POST(req: Request) {
             const visionModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
             const base64Data = buffer.toString('base64');
             try {
+                // OCR Call with Retry
                 const result = await generateWithRetry(() => visionModel.generateContent([
                     { inlineData: { data: base64Data, mimeType: "application/pdf" } },
                     `Transcribe the full text of this document verbatim. Return ONLY the text.`
@@ -99,7 +108,7 @@ export async function POST(req: Request) {
                 console.log(`[OCR] Success. Extracted ${text.length} chars.`);
             } catch (err) {
                 console.error("[OCR Failed]", err);
-                return NextResponse.json({ error: "Google AI is busy (429). Wait 1 min and try again." }, { status: 500 });
+                return NextResponse.json({ error: "Google AI quota exceeded. Please wait 2 minutes and try again." }, { status: 500 });
             }
         } else {
             return NextResponse.json({ error: "Unsupported file type." }, { status: 400 });
@@ -116,6 +125,7 @@ export async function POST(req: Request) {
 
         for (const [index, chunk] of chunks.entries()) {
             try {
+                // Embedding Call with Retry
                 const result = await generateWithRetry(() => embedModel.embedContent(chunk));
                 const embedding = result.embedding.values;
 
@@ -124,12 +134,14 @@ export async function POST(req: Request) {
                     [communityId, file.name, chunk, JSON.stringify(embedding)]
                 );
                 insertedCount++;
-                await delay(200);
 
-                if (insertedCount % 10 === 0) console.log(`   Saved ${insertedCount}/${chunks.length} chunks...`);
+                // UPDATED: Increased delay to 1s to prevent rate limits during heavy inserts
+                await delay(1000);
+
+                if (insertedCount % 5 === 0) console.log(`   Saved ${insertedCount}/${chunks.length} chunks...`);
 
             } catch (embedError) {
-                console.error(`[Embed Error] Chunk ${index} skipped`);
+                console.error(`[Embed Error] Chunk ${index} skipped`, embedError);
             }
         }
 
