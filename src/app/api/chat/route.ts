@@ -15,16 +15,17 @@ export async function POST(request: Request) {
         console.log(`\n--- NEW CHAT QUERY: "${message}" ---`);
 
         // --- STEP 1: CONTEXTUAL ANALYSIS (The Detective) ---
-        // MODEL 1: Strict JSON Mode for logic
         const analyzerModel = genAI.getGenerativeModel({
             model: "gemini-2.0-flash",
             generationConfig: { responseMimeType: "application/json" }
         });
 
+        // Format history for the prompt
         const historyText = history
             ? history.map((h: any) => `${h.role === 'user' ? 'User' : 'Assistant'}: ${h.text}`).join('\n')
             : `User: ${message}`;
 
+        // UPDATED PROMPT: stricter instructions for "missing_info_response"
         const analyzerPrompt = `
     You are a conversation analyzer for a Property Management AI.
     
@@ -32,18 +33,18 @@ export async function POST(request: Request) {
     ${historyText}
     
     TASK:
-    1. Identify if the User has specified which **Community/HOA** they are asking about (e.g., "Five Oaks", "Forest Hills").
-    2. Identify if the User has specified their **Role** (e.g., "Homeowner", "Tenant", "Board Member").
+    1. Analyze the ENTIRE history to identify the User's **Community/HOA** (e.g., "Five Oaks", "Forest Hills").
+    2. Analyze the ENTIRE history to identify the User's **Role** (e.g., "Homeowner", "Tenant", "Board Member").
     3. Determine the User's core question or intent.
 
     OUTPUT IN JSON FORMAT ONLY:
     {
-      "has_community": boolean,
-      "has_role": boolean,
+      "has_community": boolean, // Set to true ONLY if a clear community name is found
+      "has_role": boolean,      // Set to true ONLY if the user's role is clear
       "community_name": "extracted name or null",
       "user_role": "extracted role or null",
       "search_query": "A specific search query for the database (e.g. 'parking rules in Five Oaks') OR null if info is missing",
-      "missing_info_response": "A polite question asking for the missing community or role. (Only needed if has_community or has_role is false)"
+      "missing_info_response": "If (and only if) info is missing, write a polite follow-up question. IMPORTANT: Ask ONLY for the missing piece. If you have the role but miss the community, ask ONLY for the community. Do not ask for what you already have."
     }
     `;
 
@@ -83,7 +84,6 @@ export async function POST(request: Request) {
         ).join("\n\n");
 
         // --- STEP 3: GENERATE FINAL ANSWER ---
-        // MODEL 2: Standard Text Mode for talking to humans
         const chatModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
         const answerPrompt = `
