@@ -1,7 +1,18 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { Mail, Building2, Trash2, CheckCircle, Plus, BookOpen, Upload, FileText, Loader, Filter } from 'lucide-react';
+import { useUser } from '@clerk/nextjs'; // <--- IMPORT CLERK HOOK
+import { Mail, Building2, Trash2, CheckCircle, Plus, BookOpen, Upload, FileText, Loader, Filter, ShieldAlert } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+
+// --- CONFIGURATION ---
+// Add all emails that should have admin access here
+const AUTHORIZED_EMAILS = [
+    "amy@communityfocusnc.com",
+    "rconwayak@gmail.com",
+    "info@communityfocusnc.com",
+    "rconway0825@gmail.com"
+];
 
 // --- TYPES ---
 interface Message {
@@ -26,13 +37,15 @@ interface Community {
 interface Document {
     id: string;
     filename: string;
-    community_id: number; // Added for filtering
+    community_id: number;
     community_name: string;
     chunk_count: number;
     created_at: string;
 }
 
 export default function AdminDashboard() {
+    const { user, isLoaded } = useUser(); // <--- GET USER DATA
+    const router = useRouter();
     const [activeTab, setActiveTab] = useState<'inbox' | 'communities' | 'knowledge'>('inbox');
 
     // Data State
@@ -41,20 +54,29 @@ export default function AdminDashboard() {
     const [documents, setDocuments] = useState<Document[]>([]);
     const [loading, setLoading] = useState(true);
 
-    // Form State for New Community
+    // Form State
     const [isAdding, setIsAdding] = useState(false);
     const [newComm, setNewComm] = useState({ name: '', city: 'Durham, NC', portal_url: '', description: '' });
 
-    // Form State for Document Upload
+    // Upload State
     const [uploading, setUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState("");
-    const [selectedCommId, setSelectedCommId] = useState<string>(""); // Acts as Upload Target AND Filter
+    const [selectedCommId, setSelectedCommId] = useState<string>("");
     const [files, setFiles] = useState<FileList | null>(null);
 
-    // --- INITIAL LOAD ---
+    // --- ACCESS CONTROL CHECK ---
     useEffect(() => {
-        loadData();
-    }, []);
+        if (isLoaded && user) {
+            const email = user.primaryEmailAddress?.emailAddress;
+            if (email && !AUTHORIZED_EMAILS.includes(email)) {
+                // Optional: Redirect them home automatically after 3 seconds
+                // setTimeout(() => router.push('/'), 3000);
+            } else {
+                // Only load data if they are authorized
+                loadData();
+            }
+        }
+    }, [isLoaded, user]);
 
     const loadData = async () => {
         try {
@@ -73,7 +95,38 @@ export default function AdminDashboard() {
         }
     };
 
-    // --- COMMUNITY ACTIONS ---
+    // --- LOADING STATE ---
+    if (!isLoaded) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-slate-50">
+                <Loader className="w-8 h-8 text-brand animate-spin" />
+            </div>
+        );
+    }
+
+    // --- SECURITY GATE ---
+    const userEmail = user?.primaryEmailAddress?.emailAddress;
+    if (!userEmail || !AUTHORIZED_EMAILS.includes(userEmail)) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-6 text-center">
+                <div className="bg-red-50 p-6 rounded-2xl border border-red-100 max-w-md w-full">
+                    <ShieldAlert className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                    <h1 className="text-2xl font-bold text-red-700 mb-2">Access Denied</h1>
+                    <p className="text-red-600 mb-6">
+                        You are logged in as <strong>{userEmail}</strong>, but this account does not have administrator privileges.
+                    </p>
+                    <button
+                        onClick={() => router.push('/')}
+                        className="bg-white border border-red-200 text-red-700 px-6 py-2 rounded-lg font-bold hover:bg-red-50 transition-colors"
+                    >
+                        Return Home
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // --- DATA ACTIONS (SAME AS BEFORE) ---
     const handleAddCommunity = async (e: React.FormEvent) => {
         e.preventDefault();
         const res = await fetch('/api/admin/communities', {
@@ -95,7 +148,6 @@ export default function AdminDashboard() {
         setCommunities(prev => prev.filter(c => c.id !== id));
     };
 
-    // --- MESSAGE ACTIONS ---
     const handleMarkRead = async (id: number) => {
         setMessages(prev => prev.map(m => m.id === id ? { ...m, status: 'read' } : m));
         await fetch(`/api/admin/messages/${id}`, {
@@ -111,7 +163,6 @@ export default function AdminDashboard() {
         await fetch(`/api/admin/messages/${id}`, { method: 'DELETE' });
     };
 
-    // --- DOCUMENT ACTIONS ---
     const handleUpload = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!files || files.length === 0 || !selectedCommId) return;
@@ -168,7 +219,6 @@ export default function AdminDashboard() {
         loadData();
     };
 
-    // --- FILTERED DOCS LOGIC ---
     const filteredDocuments = selectedCommId
         ? documents.filter(d => d.community_id.toString() === selectedCommId)
         : [];
