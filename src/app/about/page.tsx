@@ -7,9 +7,16 @@ export default function AboutPage() {
     // --- TEAM DATA ---
     const team = [
         {
+            name: "Josh Lindgren",
+            role: "Owner",
+            image: "/team/josh-lindgren.jpg",
+            // Professional placeholder bio - ready to use or edit
+            bio: "As the owner of Community Focus, Josh is dedicated to redefining the property management experience in North Carolina. With a passion for community building and operational excellence, he leads the team in delivering transparent, responsive, and personalized service to every association we manage."
+        },
+        {
             name: "Robin Conway",
             role: "VP of Association Services",
-            image: "/team/robin-conway.jpg", // Make sure file is in public/team/
+            image: "/team/robin-conway.jpg",
             bio: "Robin brings a wealth of leadership experience to Community Focus. As a former partner in the commercial lighting industry, she specializes in building strong, transparent relationships with HOA boards and vendors. A Chapel Hill resident of 37 years, she is dedicated to ensuring every community receives proactive management and personalized care."
         },
         // Add more team members here...
@@ -96,7 +103,7 @@ export default function AboutPage() {
                             </Reveal>
                         ))}
 
-                        {/* Hiring Card (Optional Placeholder) */}
+                        {/* Hiring / Contact Card */}
                         <Reveal delay={0.3}>
                             <div className="bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 h-full min-h-[400px] flex flex-col items-center justify-center p-6 text-center hover:border-brand/50 transition-colors">
                                 <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm mb-4">
