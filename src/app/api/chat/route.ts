@@ -5,9 +5,12 @@ import pool from '@/lib/db';
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 const GLOBAL_LAWS_COMMUNITY = "North Carolina General Statutes";
 
+// DEFINED CONSTANTS - The Master Links
+const MASTER_PORTAL_URL = "https://cfnc.cincwebaxis.com";
+const MASTER_WORK_ORDER_URL = "https://cfnc.cincwebaxis.com/workorders";
+
 export async function POST(request: Request) {
     try {
-        // NEW: Receive communityName explicitly
         const { message, history, communityName } = await request.json();
 
         if (!message || !communityName) {
@@ -16,8 +19,7 @@ export async function POST(request: Request) {
 
         console.log(`\n--- NEW CHAT QUERY: "${message}" (Community: ${communityName}) ---`);
 
-        // --- STEP 1: CONTEXTUAL ANALYSIS (SIMPLIFIED) ---
-        // We only need the AI to extract the Role and Core Question now.
+        // --- STEP 1: CONTEXTUAL ANALYSIS ---
         const analyzerModel = genAI.getGenerativeModel({
             model: "gemini-2.0-flash",
             generationConfig: { responseMimeType: "application/json" }
@@ -30,7 +32,7 @@ export async function POST(request: Request) {
         const analyzerPrompt = `
     You are a conversation analyzer for a Property Management AI.
     
-    **USER'S COMMUNITY:** "${communityName}" (This is confirmed).
+    **USER'S COMMUNITY:** "${communityName}"
     
     **CONVERSATION HISTORY:**
     ${historyText}
@@ -61,7 +63,7 @@ export async function POST(request: Request) {
         const embeddingResult = await embeddingModel.embedContent(analysis.search_query);
         const embedding = embeddingResult.embedding.values;
 
-        // QUERY A: Search ONLY the Selected Community
+        // QUERY A: Local Community Docs
         const localQuery = pool.query(
             `SELECT cd.content, c.name as community_name, (cd.embedding <=> $1::vector) as distance
              FROM community_docs cd
@@ -112,14 +114,22 @@ export async function POST(request: Request) {
       
       **TONE & STYLE GUIDELINES:**
       1. **Speak Plainly:** Explain rules in simple, everyday language.
-      2. **Be Direct:** Answer the question first ("Yes," "No," "It depends...").
-      3. **Use Source:** Only use the provided Official Documents. If the answer isn't there, say you don't know.
+      2. **Be Direct:** Answer the question first.
+      3. **Use Source:** Only use the provided Official Documents.
       
       **CRITICAL DISTINCTIONS:**
       - If local rules conflict with State Laws (NC Gen Stat), explain that State Law usually wins.
       
       **EMERGENCY PROTOCOL:**
-      If issue is (A) Emergency AND (B) HOA Responsibility -> Append CINC Link: [Submit CINC Work Order](https://placeholder.cinc.com/work-order)
+      If the user's issue meets BOTH criteria:
+      (A) It is an **emergency** (e.g., active water leak, fire hazard, storm damage).
+      (B) The documents indicate it is the **HOA's responsibility**.
+      
+      ...THEN append this exact link at the end of your message:
+      "\n\n🚨 **This appears to be an urgent HOA matter. Please submit an Emergency Work Order immediately:** [Submit Work Order](${MASTER_WORK_ORDER_URL})"
+      
+      **GENERAL PORTAL REFERRALS:**
+      If the user asks about payments or account balances, refer them to: [Resident Portal](${MASTER_PORTAL_URL})
     `;
 
         const finalResult = await chatModel.generateContent(answerPrompt);

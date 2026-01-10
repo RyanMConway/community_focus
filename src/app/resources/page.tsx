@@ -11,7 +11,11 @@ export default function ResourcesPage() {
         if (chatButton) chatButton.click();
     };
 
-    // Real Book Data (Links removed)
+    // Master Links
+    const PORTAL_URL = "https://cfnc.cincwebaxis.com";
+    const WORKORDER_URL = "https://cfnc.cincwebaxis.com/workorders";
+
+    // Real Book Data
     const books = [
         {
             title: "Your Home is Your Castle",
@@ -40,7 +44,7 @@ export default function ResourcesPage() {
                         Everything you need to manage your home and community life, all in one place.
                     </p>
                 </div>
-                {/* Abstract Background Shapes */}
+                {/* Background Shapes */}
                 <div className="absolute top-0 left-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2"></div>
                 <div className="absolute bottom-0 right-0 w-96 h-96 bg-brand/20 rounded-full blur-3xl translate-x-1/2 translate-y-1/2"></div>
             </div>
@@ -50,7 +54,7 @@ export default function ResourcesPage() {
 
                     {/* Card 1: Payments */}
                     <Reveal delay={0.1}>
-                        <a href="https://cfnc.cincwebaxis.com/" target="_blank" rel="noreferrer" className="block group">
+                        <a href={PORTAL_URL} target="_blank" rel="noreferrer" className="block group">
                             <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-xl transition-all hover:-translate-y-1 h-full">
                                 <div className="w-14 h-14 bg-green-50 rounded-xl flex items-center justify-center mb-6 group-hover:bg-green-100 transition-colors">
                                     <DollarSign className="w-7 h-7 text-green-600" />
@@ -66,7 +70,7 @@ export default function ResourcesPage() {
 
                     {/* Card 2: Maintenance */}
                     <Reveal delay={0.2}>
-                        <a href="https://cfnc.cincwebaxis.com/workorders" target="_blank" rel="noreferrer" className="block group">
+                        <a href={WORKORDER_URL} target="_blank" rel="noreferrer" className="block group">
                             <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-xl transition-all hover:-translate-y-1 h-full">
                                 <div className="w-14 h-14 bg-blue-50 rounded-xl flex items-center justify-center mb-6 group-hover:bg-blue-100 transition-colors">
                                     <Wrench className="w-7 h-7 text-blue-600" />
@@ -89,7 +93,7 @@ export default function ResourcesPage() {
                                     <Scale className="w-7 h-7 text-purple-600" />
                                 </div>
                                 <h3 className="text-xl font-bold text-slate-800 mb-2">NC Statutes & Rules</h3>
-                                <p className="text-slate-500 mb-4">Questions about community rules? Our AI Assistant can help you navigate the NC General Statutes (47F/47C).</p>
+                                <p className="text-slate-500 mb-4">Questions about community rules? Our AI Assistant can help you navigate the NC General Statutes.</p>
                                 <span className="text-brand font-bold text-sm flex items-center gap-2">
                                     Ask the AI Assistant <Users className="w-4 h-4" />
                                 </span>
