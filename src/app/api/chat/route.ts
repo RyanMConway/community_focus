@@ -8,8 +8,8 @@ const GLOBAL_LAWS_COMMUNITY = "North Carolina General Statutes";
 // DEFINED CONSTANTS - The Master Links
 const MASTER_PORTAL_URL = "https://cfnc.cincwebaxis.com";
 const MASTER_WORK_ORDER_URL = "https://cfnc.cincwebaxis.com/workorders";
-const OFFICE_PHONE = "(919) 564-9134"; // Replace with your real office number
-const OFFICE_EMAIL = "info@communityfocusnc.com"; // Replace with real email
+const OFFICE_PHONE = "(919) 564-9134";
+const OFFICE_EMAIL = "info@communityfocusnc.com";
 
 export async function POST(request: Request) {
     try {
@@ -21,15 +21,22 @@ export async function POST(request: Request) {
 
         console.log(`\n--- NEW CHAT QUERY: "${message}" (Community: ${communityName}) ---`);
 
-        // --- STEP 1: CONTEXTUAL ANALYSIS ---
+        // --- STEP 1: CONSTRUCT HISTORY (THE FIX) ---
+        // We parse the existing history...
+        let historyLines = history
+            ? history.map((h: any) => `${h.role === 'user' ? 'User' : 'Assistant'}: ${h.text}`)
+            : [];
+
+        // ...AND we explicitly append the NEW message to the end.
+        historyLines.push(`User: ${message}`);
+
+        const historyText = historyLines.join('\n');
+
+        // --- STEP 2: CONTEXTUAL ANALYSIS ---
         const analyzerModel = genAI.getGenerativeModel({
             model: "gemini-2.0-flash",
             generationConfig: { responseMimeType: "application/json" }
         });
-
-        const historyText = history
-            ? history.map((h: any) => `${h.role === 'user' ? 'User' : 'Assistant'}: ${h.text}`).join('\n')
-            : `User: ${message}`;
 
         const analyzerPrompt = `
     You are a conversation analyzer for a Property Management AI.
@@ -41,7 +48,7 @@ export async function POST(request: Request) {
     
     **TASK:**
     1. Identify the User's **Role** (Homeowner, Tenant, Board Member). If unknown, assume "Homeowner".
-    2. Identify the User's **Core Question**.
+    2. Identify the User's **Core Question** (Focus on the last User message).
     3. Generate a **Search Query** for the database.
 
     **OUTPUT JSON:**
@@ -58,7 +65,7 @@ export async function POST(request: Request) {
 
         console.log("Analysis:", analysis);
 
-        // --- STEP 2: DATABASE SEARCH ---
+        // --- STEP 3: DATABASE SEARCH ---
         console.log(`Searching DB for: "${analysis.search_query}"`);
 
         const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
@@ -98,7 +105,7 @@ export async function POST(request: Request) {
             console.log("No documents found locally or globally.");
         }
 
-        // --- STEP 3: GENERATE ANSWER ---
+        // --- STEP 4: GENERATE ANSWER ---
         const chatModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
         const answerPrompt = `
@@ -133,10 +140,9 @@ export async function POST(request: Request) {
          
       3. **CONTACT INFO:**
          If asked for a phone number or email, provide the office info: ${OFFICE_PHONE} or ${OFFICE_EMAIL}.
-         Do NOT invent personal phone numbers for managers.
          
       4. **SPECIFIC DATES / CALENDARS:**
-         Do NOT guess dates for meetings or trash pickup. Instead, say:
+         Do NOT guess dates. Say:
          "Please check the Calendar or News section of the Resident Portal for the most up-to-date schedules."
       
       5. **EMERGENCY ISSUES:**
