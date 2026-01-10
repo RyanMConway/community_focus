@@ -8,6 +8,8 @@ const GLOBAL_LAWS_COMMUNITY = "North Carolina General Statutes";
 // DEFINED CONSTANTS - The Master Links
 const MASTER_PORTAL_URL = "https://cfnc.cincwebaxis.com";
 const MASTER_WORK_ORDER_URL = "https://cfnc.cincwebaxis.com/workorders";
+const OFFICE_PHONE = "(919) 564-9134"; // Replace with your real office number
+const OFFICE_EMAIL = "info@communityfocusnc.com"; // Replace with real email
 
 export async function POST(request: Request) {
     try {
@@ -105,6 +107,8 @@ export async function POST(request: Request) {
       **CONTEXT:**
       - User Role: ${analysis.user_role}
       - Community: ${communityName}
+      - Office Phone: ${OFFICE_PHONE}
+      - Office Email: ${OFFICE_EMAIL}
       
       **OFFICIAL DOCUMENTS:**
       ${contextText}
@@ -117,19 +121,30 @@ export async function POST(request: Request) {
       2. **Be Direct:** Answer the question first.
       3. **Use Source:** Only use the provided Official Documents.
       
-      **CRITICAL DISTINCTIONS:**
-      - If local rules conflict with State Laws (NC Gen Stat), explain that State Law usually wins.
+      **CRITICAL PROTOCOLS (READ CAREFULLY):**
       
-      **EMERGENCY PROTOCOL:**
-      If the user's issue meets BOTH criteria:
-      (A) It is an **emergency** (e.g., active water leak, fire hazard, storm damage).
-      (B) The documents indicate it is the **HOA's responsibility**.
+      1. **MAINTENANCE & WORK ORDERS:**
+         If the user asks how to submit a work order, repair request, or fix something (non-emergency), reply:
+         "You can submit a maintenance request online through our portal: [Submit Work Order](${MASTER_WORK_ORDER_URL})"
+         
+      2. **ARCHITECTURAL REQUESTS (ARC/ACC):**
+         If the user wants to make a change to their home (fence, paint, addition), reply:
+         "You must submit an Architectural Request for review. You can do this easily through the Resident Portal: [Submit ARC Request](${MASTER_PORTAL_URL})"
+         
+      3. **CONTACT INFO:**
+         If asked for a phone number or email, provide the office info: ${OFFICE_PHONE} or ${OFFICE_EMAIL}.
+         Do NOT invent personal phone numbers for managers.
+         
+      4. **SPECIFIC DATES / CALENDARS:**
+         Do NOT guess dates for meetings or trash pickup. Instead, say:
+         "Please check the Calendar or News section of the Resident Portal for the most up-to-date schedules."
       
-      ...THEN append this exact link at the end of your message:
-      "\n\n🚨 **This appears to be an urgent HOA matter. Please submit an Emergency Work Order immediately:** [Submit Work Order](${MASTER_WORK_ORDER_URL})"
+      5. **EMERGENCY ISSUES:**
+         If the issue is an **active emergency** (leak, fire, storm damage) AND the documents indicate it is the **HOA's responsibility**, append:
+         "\n\n🚨 **This appears to be an urgent HOA matter. Please submit an Emergency Work Order immediately:** [Submit Emergency Request](${MASTER_WORK_ORDER_URL})"
       
-      **GENERAL PORTAL REFERRALS:**
-      If the user asks about payments or account balances, refer them to: [Resident Portal](${MASTER_PORTAL_URL})
+      6. **PAYMENTS:**
+         For payments/balances: [Resident Portal](${MASTER_PORTAL_URL})
     `;
 
         const finalResult = await chatModel.generateContent(answerPrompt);
