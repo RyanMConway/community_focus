@@ -81,13 +81,15 @@ export default function AboutPage() {
                         {team.map((member, index) => (
                             <Reveal key={index} delay={index * 0.1}>
                                 <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-lg transition-shadow group">
-                                    {/* Image Container */}
-                                    <div className="relative h-80 w-full bg-slate-200 overflow-hidden">
+                                    {/* Image Container - UPDATED for better framing */}
+                                    <div className="relative h-80 w-full bg-slate-100 overflow-hidden"> {/* Changed bg to bg-slate-100 */}
                                         <Image
                                             src={member.image}
                                             alt={member.name}
                                             fill
-                                            className="object-cover object-top group-hover:scale-105 transition-transform duration-500"
+                                            // CHANGED: object-cover -> object-contain
+                                            // CHANGED: object-top -> object-center
+                                            className="object-contain object-center p-2 group-hover:scale-105 transition-transform duration-500"
                                         />
                                     </div>
 
