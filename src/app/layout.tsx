@@ -1,25 +1,22 @@
 import type { Metadata } from "next";
-import { ClerkProvider } from '@clerk/nextjs'; // <--- IMPORT THIS
-import localFont from "next/font/local";
+import { ClerkProvider } from '@clerk/nextjs'; // <--- Keep Clerk
+import { Inter, Merriweather } from "next/font/google"; // <--- Use your original fonts
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ChatWidget from "@/components/ChatWidget";
 
-const geistSans = localFont({
-    src: "./fonts/GeistVF.woff",
-    variable: "--font-geist-sans",
-    weight: "100 900",
-});
-const geistMono = localFont({
-    src: "./fonts/GeistMonoVF.woff",
-    variable: "--font-geist-mono",
-    weight: "100 900",
+// Setup Google Fonts
+const inter = Inter({ subsets: ["latin"], variable: '--font-inter' });
+const merriweather = Merriweather({
+    weight: ['400', '700'],
+    subsets: ["latin"],
+    variable: '--font-serif'
 });
 
 export const metadata: Metadata = {
     title: "Community Focus of NC",
-    description: "Modern HOA Management",
+    description: "Professional Association Management in North Carolina",
 };
 
 export default function RootLayout({
@@ -28,16 +25,18 @@ export default function RootLayout({
     children: React.ReactNode;
 }>) {
     return (
-        // WRAP EVERYTHING IN CLERK PROVIDER
+        // Wrap the entire app in ClerkProvider
         <ClerkProvider>
             <html lang="en">
-            <body
-                className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-            >
+            <body className={`${inter.variable} ${merriweather.variable} font-sans flex flex-col min-h-screen`}>
             <Navbar />
-            {children}
-            <ChatWidget />
+            <main className="flex-grow">
+                {children}
+            </main>
             <Footer />
+
+            {/* Chat Widget */}
+            <ChatWidget />
             </body>
             </html>
         </ClerkProvider>
