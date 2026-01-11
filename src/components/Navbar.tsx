@@ -39,7 +39,7 @@ export default function Navbar() {
                     <Link href="/services" className="text-slate-600 hover:text-brand font-medium transition-colors text-[15px]">
                         Services
                     </Link>
-                    <Link href="/resources" className="text-slate-600 hover:text-brand font-medium transition-colors">
+                    <Link href="/resources" className="text-slate-600 hover:text-brand font-medium transition-colors text-[15px]">
                         Resources
                     </Link>
 
