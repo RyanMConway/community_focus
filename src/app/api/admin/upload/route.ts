@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import pool from '@/lib/db'; // Your Postgres connection
+import pool from '@/lib/db';
 import { createClient } from '@supabase/supabase-js';
-// We use 'require' because pdf-parse is an older library that doesn't support 'import' well
-const pdf = require('pdf-parse');
+import PDFParser from 'pdf2json'; // <--- New Import
 
-// Initialize Supabase Client (for Storage only)
+// Initialize Supabase Client (Service Role Key for Admin Access)
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// --- HELPER: The "Smart Renaming" Logic (Ported from Python) ---
+// --- HELPER: Smart Renaming Logic ---
 function getSmartDetails(filename: string) {
     const lower = filename.toLowerCase();
 
@@ -20,7 +19,7 @@ function getSmartDetails(filename: string) {
     if (lower.includes('bylaw'))
         return { slug: 'bylaws.pdf', title: 'Bylaws', category: 'Governing' };
 
-    if (lower.includes('ccr') || lower.includes('declaration'))
+    if (lower.includes('ccr') || lower.includes('declaration') || lower.includes('covenant'))
         return { slug: 'ccrs.pdf', title: 'Declaration of Covenants (CCRs)', category: 'Governing' };
 
     if (lower.includes('arc') || lower.includes('architect')) {
@@ -29,9 +28,29 @@ function getSmartDetails(filename: string) {
         return { slug: 'arc-form.pdf', title: 'ARC Request Form', category: 'Forms' };
     }
 
+    if (lower.includes('rule') || lower.includes('reg'))
+        return { slug: 'rules-and-regs.pdf', title: 'Rules & Regulations', category: 'Governing' };
+
     // Fallback
     const cleanName = filename.replace(/\.pdf$/i, '').replace(/[^a-z0-9]/gi, '-').toLowerCase();
     return { slug: `${cleanName}.pdf`, title: filename.replace('.pdf', ''), category: 'General' };
+}
+
+// --- HELPER: Extract Text using pdf2json ---
+async function parsePDF(buffer: Buffer): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const pdfParser = new PDFParser(null, 1); // 1 = Text content only
+
+        pdfParser.on("pdfParser_dataError", (errData: any) => reject(errData.parserError));
+
+        pdfParser.on("pdfParser_dataReady", (pdfData: any) => {
+            // Extract raw text from the JSON structure
+            const text = pdfParser.getRawTextContent();
+            resolve(text);
+        });
+
+        pdfParser.parseBuffer(buffer);
+    });
 }
 
 export async function POST(req: NextRequest) {
@@ -44,10 +63,15 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Missing file or community' }, { status: 400 });
         }
 
-        // 1. GET DB ID for Community
+        // 1. GET DB ID
         const client = await pool.connect();
         const commResult = await client.query('SELECT id, name FROM communities WHERE slug = $1', [communitySlug]);
-        if (commResult.rows.length === 0) throw new Error('Community not found');
+
+        if (commResult.rows.length === 0) {
+            client.release();
+            throw new Error('Community not found');
+        }
+
         const communityId = commResult.rows[0].id;
         const communityName = commResult.rows[0].name;
 
@@ -57,9 +81,11 @@ export async function POST(req: NextRequest) {
 
         // 3. UPLOAD TO SUPABASE STORAGE
         const fileBuffer = await file.arrayBuffer();
+        const buffer = Buffer.from(fileBuffer); // Convert for Node.js usage
+
         const { error: uploadError } = await supabase.storage
             .from('community-files')
-            .upload(storagePath, fileBuffer, { upsert: true, contentType: 'application/pdf' });
+            .upload(storagePath, buffer, { upsert: true, contentType: 'application/pdf' });
 
         if (uploadError) throw uploadError;
 
@@ -67,20 +93,19 @@ export async function POST(req: NextRequest) {
         const { data: { publicUrl } } = supabase.storage.from('community-files').getPublicUrl(storagePath);
 
         // 4. DATABASE INSERT (Downloads)
-        // Check if exists first to avoid duplicate rows
         await client.query(
             `INSERT INTO community_downloads (community_id, title, category, file_url)
              VALUES ($1, $2, $3, $4)
-             ON CONFLICT (community_id, title) DO UPDATE SET file_url = EXCLUDED.file_url`,
+                 ON CONFLICT (community_id, title) DO UPDATE SET file_url = EXCLUDED.file_url`,
             [communityId, title, category, publicUrl]
         );
 
         // 5. EXTRACT TEXT FOR AI
-        // We use the buffer we already have
-        const data = await pdf(Buffer.from(fileBuffer));
-        let textContent = `[DOCUMENT: ${title} for ${communityName}]\n${data.text}`;
+        // Use the new parser helper
+        let rawText = await parsePDF(buffer);
+        let textContent = `[DOCUMENT: ${title} for ${communityName}]\n${rawText}`;
 
-        // Truncate to safe limit (100k chars)
+        // Truncate to safe limit
         if (textContent.length > 100000) textContent = textContent.substring(0, 100000);
 
         // 6. DATABASE INSERT (AI Docs)
