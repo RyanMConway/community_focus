@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useUser } from '@clerk/nextjs';
-import { Mail, Building2, Trash2, CheckCircle, Plus, BookOpen, Upload, FileText, Loader, Filter, ShieldAlert } from 'lucide-react';
+import { Mail, Building2, Trash2, CheckCircle, Plus, BookOpen, Upload, FileText, Loader, Filter, ShieldAlert, ExternalLink } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 // --- CONFIGURATION ---
@@ -53,15 +53,12 @@ export default function AdminDashboard() {
     const [documents, setDocuments] = useState<Document[]>([]);
     const [loading, setLoading] = useState(true);
 
-    // Form State
+    // Form State for Communities
     const [isAdding, setIsAdding] = useState(false);
     const [newComm, setNewComm] = useState({ name: '', city: 'Durham, NC', portal_url: '', description: '' });
 
-    // Upload State
-    const [uploading, setUploading] = useState(false);
-    const [uploadProgress, setUploadProgress] = useState("");
+    // Filter State for Knowledge Base
     const [selectedCommId, setSelectedCommId] = useState<string>("");
-    const [files, setFiles] = useState<FileList | null>(null);
 
     // --- ACCESS CONTROL CHECK ---
     useEffect(() => {
@@ -158,58 +155,7 @@ export default function AdminDashboard() {
         await fetch(`/api/admin/messages/${id}`, { method: 'DELETE' });
     };
 
-    const handleUpload = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!files || files.length === 0 || !selectedCommId) return;
-
-        setUploading(true);
-        const fileArray = Array.from(files);
-        let errors = [];
-
-        for (let i = 0; i < fileArray.length; i++) {
-            const file = fileArray[i];
-            setUploadProgress(`Uploading ${i + 1} of ${fileArray.length}: ${file.name}`);
-
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('communityId', selectedCommId);
-
-            try {
-                const res = await fetch('/api/admin/documents', {
-                    method: 'POST',
-                    body: formData
-                });
-                if (!res.ok) {
-                    const err = await res.json();
-                    errors.push(`${file.name}: ${err.error}`);
-                }
-            } catch (err) {
-                errors.push(`${file.name}: Upload failed`);
-            }
-
-            if (i < fileArray.length - 1) {
-                await new Promise(resolve => setTimeout(resolve, 2000));
-            }
-        }
-
-        setUploading(false);
-        setUploadProgress("");
-        setFiles(null);
-
-        const fileInput = document.getElementById('file-upload') as HTMLInputElement;
-        if (fileInput) fileInput.value = "";
-
-        if (errors.length > 0) {
-            alert(`Some files failed:\n${errors.join('\n')}`);
-        } else {
-            alert('All documents uploaded successfully!');
-        }
-
-        loadData();
-    };
-
-    // --- UPDATED DELETE FUNCTION ---
-    // Now accepts communityId to target the exact file record
+    // --- "Clean Sweep" Delete Function ---
     const handleDeleteDocument = async (filename: string, communityId: number) => {
         if (!confirm(`Permanently delete "${filename}"? This will remove it from the website, storage, and AI.`)) return;
 
@@ -319,49 +265,40 @@ export default function AdminDashboard() {
                 {/* === TAB 3: KNOWLEDGE BASE === */}
                 {activeTab === 'knowledge' && (
                     <div className="space-y-6">
-                        {/* Upload & Select Card */}
+                        {/* Header & Filter Card */}
                         <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
-                            <h2 className="text-lg font-bold text-slate-800 mb-1">Knowledge Base Manager</h2>
-                            <p className="text-sm text-slate-500 mb-6">Select a community to view active files or upload new ones.</p>
+                            <h2 className="text-lg font-bold text-slate-800 mb-4">Knowledge Base Manager</h2>
 
-                            <form onSubmit={handleUpload} className="bg-slate-50 p-6 rounded-xl border border-dashed border-slate-300 flex flex-col md:flex-row gap-4 items-end">
-                                <div className="flex-1 w-full">
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Select Community (Filter)</label>
-                                    <select
-                                        required
-                                        className="w-full p-2.5 rounded border border-slate-300 bg-white"
-                                        value={selectedCommId}
-                                        onChange={(e) => setSelectedCommId(e.target.value)}
+                            <div className="flex flex-col md:flex-row gap-4 items-end justify-between">
+                                {/* Filter Dropdown */}
+                                <div className="w-full md:w-1/2">
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Filter by Community</label>
+                                    <div className="relative">
+                                        <select
+                                            className="w-full p-3 rounded-lg border border-slate-300 bg-white appearance-none cursor-pointer hover:border-brand/50 focus:ring-2 focus:ring-brand/20 outline-none transition-all"
+                                            value={selectedCommId}
+                                            onChange={(e) => setSelectedCommId(e.target.value)}
+                                        >
+                                            <option value="">-- View All Communities --</option>
+                                            {communities.map(c => (
+                                                <option key={c.id} value={c.id}>{c.name}</option>
+                                            ))}
+                                        </select>
+                                        <Filter className="w-4 h-4 text-slate-400 absolute right-3 top-3.5 pointer-events-none" />
+                                    </div>
+                                </div>
+
+                                {/* Upload Button (Link) */}
+                                <div className="w-full md:w-auto">
+                                    <button
+                                        onClick={() => router.push('/admin/upload')}
+                                        className="w-full bg-brand text-white px-6 py-3 rounded-lg font-bold shadow-md hover:bg-brand-dark hover:shadow-lg transition-all flex items-center justify-center gap-2"
                                     >
-                                        <option value="">-- Choose a Community --</option>
-                                        {communities.map(c => (
-                                            <option key={c.id} value={c.id}>{c.name}</option>
-                                        ))}
-                                    </select>
+                                        <Upload className="w-5 h-5" />
+                                        Upload New Document
+                                    </button>
                                 </div>
-                                <div className="flex-1 w-full">
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Upload New Files</label>
-                                    <input
-                                        id="file-upload"
-                                        type="file"
-                                        multiple
-                                        accept=".pdf,.txt,.md"
-                                        onChange={(e) => setFiles(e.target.files)}
-                                        className="w-full bg-white border border-slate-300 rounded p-2 text-sm file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-brand file:text-white hover:file:bg-brand-dark"
-                                    />
-                                </div>
-                                <button
-                                    type="submit"
-                                    disabled={uploading || !files}
-                                    className="bg-brand text-white px-6 py-2.5 rounded-lg text-sm font-bold shadow-md hover:bg-brand-dark disabled:opacity-50 flex items-center gap-2 min-w-[160px] justify-center"
-                                >
-                                    {uploading ? (
-                                        <><Loader className="w-4 h-4 animate-spin"/> {uploadProgress || 'Processing'}</>
-                                    ) : (
-                                        <><Upload className="w-4 h-4"/> Upload</>
-                                    )}
-                                </button>
-                            </form>
+                            </div>
                         </div>
 
                         {/* Document List */}
@@ -370,10 +307,12 @@ export default function AdminDashboard() {
                                 <h2 className="text-lg font-bold text-slate-800">
                                     {selectedCommId
                                         ? `Active Files for ${communities.find(c => c.id.toString() === selectedCommId)?.name}`
-                                        : "Active Files"}
+                                        : "All Active Files"}
                                 </h2>
                                 <span className="text-xs text-slate-400">
-                                    {selectedCommId ? `${filteredDocuments.length} document(s)` : "Select a community above"}
+                                    {selectedCommId
+                                        ? `${filteredDocuments.length} document(s)`
+                                        : "Select a community to filter"}
                                 </span>
                             </div>
 
