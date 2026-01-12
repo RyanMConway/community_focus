@@ -110,9 +110,9 @@ export async function POST(req: NextRequest) {
 
         // 6. DATABASE INSERT (AI Docs)
         await client.query(
-            `INSERT INTO community_docs (community_id, content, created_at)
-             VALUES ($1, $2, NOW())`,
-            [communityId, textContent]
+            `INSERT INTO community_docs (community_id, content, filename, created_at)
+             VALUES ($1, $2, $3, NOW())`,
+            [communityId, textContent, newFilename] // <--- We added newFilename here
         );
 
         client.release();
