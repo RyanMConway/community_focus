@@ -39,7 +39,7 @@ function getSmartDetails(filename: string) {
 // --- HELPER: Extract Text using pdf2json ---
 async function parsePDF(buffer: Buffer): Promise<string> {
     return new Promise((resolve, reject) => {
-        const pdfParser = new PDFParser(null, 1); // 1 = Text content only
+        const pdfParser = new PDFParser(null, true); // 1 = Text content only
 
         pdfParser.on("pdfParser_dataError", (errData: any) => reject(errData.parserError));
 
