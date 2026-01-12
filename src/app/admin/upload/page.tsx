@@ -2,10 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { Upload, CheckCircle, AlertCircle, Loader2, FileText } from 'lucide-react';
-import * as pdfjsLib from 'pdfjs-dist';
 
-// Configure the worker to run in the browser
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+// NOTE: We do NOT import pdfjs-dist at the top level anymore.
+// This prevents the "DOMMatrix is not defined" error during Vercel builds.
 
 export default function AdminUploadPage() {
     const [communities, setCommunities] = useState<any[]>([]);
@@ -19,17 +18,25 @@ export default function AdminUploadPage() {
         fetch('/api/communities').then(res => res.json()).then(setCommunities);
     }, []);
 
-    // --- NEW: Client-Side PDF Parser ---
+    // --- NEW: Dynamic Client-Side PDF Parser ---
     const extractTextFromPDF = async (file: File): Promise<string> => {
         try {
+            // 1. Dynamically import the library ONLY when needed (Client-side only)
+            const pdfjsLib = await import('pdfjs-dist');
+
+            // 2. Set up the worker (using the specific version from the imported library)
+            pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+
+            // 3. Load the document
             const arrayBuffer = await file.arrayBuffer();
             const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
             let fullText = "";
 
-            // Loop through pages
+            // 4. Loop through pages
             for (let i = 1; i <= pdf.numPages; i++) {
                 const page = await pdf.getPage(i);
                 const textContent = await page.getTextContent();
+                // @ts-ignore - 'str' exists on text items in this version
                 const pageText = textContent.items.map((item: any) => item.str).join(' ');
                 fullText += `\n--- [PAGE ${i}] ---\n${pageText}`;
             }
@@ -44,8 +51,10 @@ export default function AdminUploadPage() {
         if (!file || !selectedSlug) return;
 
         try {
-            // 1. Parse PDF on Client (No Timeout Limit)
+            // 1. Parse PDF on Client
             setStatus('parsing');
+
+            // This now triggers the dynamic import safely
             const extractedText = await extractTextFromPDF(file);
             console.log(`Extracted ${extractedText.length} chars`);
 
@@ -54,7 +63,7 @@ export default function AdminUploadPage() {
             const formData = new FormData();
             formData.append('file', file);
             formData.append('communitySlug', selectedSlug);
-            formData.append('extractedText', extractedText); // <--- Sending text directly
+            formData.append('extractedText', extractedText);
             if (customTitle.trim()) formData.append('customTitle', customTitle.trim());
 
             const res = await fetch('/api/admin/upload', {
