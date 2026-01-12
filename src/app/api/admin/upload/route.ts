@@ -3,6 +3,10 @@ import pool from '@/lib/db';
 import { createClient } from '@supabase/supabase-js';
 import PDFParser from 'pdf2json';
 
+// --- CONFIGURATION: Fix Timeout Issues ---
+export const maxDuration = 60; // Allow up to 60 seconds (Hobby plan limit)
+export const dynamic = 'force-dynamic';
+
 // --- HELPER: Humanize Messy Filenames ---
 function humanizeTitle(filename: string): string {
     let clean = filename.replace(/\.pdf$/i, '');
@@ -45,20 +49,38 @@ function getSmartDetails(filename: string) {
 // --- HELPER: Extract Text with Page Numbers ---
 async function parsePDF(buffer: Buffer): Promise<string> {
     return new Promise((resolve, reject) => {
-        const pdfParser = new PDFParser(null, true);
+        // FIX 1: Change 'true' to 'false' so we get the JSON structure (Pages), not just raw string.
+        const pdfParser = new PDFParser(null, false);
+
         pdfParser.on("pdfParser_dataError", (errData: any) => reject(errData.parserError));
+
         pdfParser.on("pdfParser_dataReady", (pdfData: any) => {
+            // FIX 2: Safety Check - If PDF is weird/empty, don't crash the server
+            if (!pdfData || !pdfData.formImage || !pdfData.formImage.Pages) {
+                console.warn("PDF Parsing Warning: No text structure found.");
+                resolve("");
+                return;
+            }
+
             let parsedText = "";
+
+            // Now this loop will work because 'false' gave us the structure
             pdfData.formImage.Pages.forEach((page: any, pageIndex: number) => {
                 const pageNum = pageIndex + 1;
                 parsedText += `\n--- [PAGE ${pageNum}] ---\n`;
-                page.Texts.forEach((textItem: any) => {
-                    const textSnippet = decodeURIComponent(textItem.R[0].T);
-                    parsedText += textSnippet + " ";
-                });
+
+                if (page.Texts) {
+                    page.Texts.forEach((textItem: any) => {
+                        if (textItem.R && textItem.R[0] && textItem.R[0].T) {
+                            const textSnippet = decodeURIComponent(textItem.R[0].T);
+                            parsedText += textSnippet + " ";
+                        }
+                    });
+                }
             });
             resolve(parsedText);
         });
+
         pdfParser.parseBuffer(buffer);
     });
 }
@@ -73,7 +95,7 @@ export async function POST(req: NextRequest) {
         const formData = await req.formData();
         const file = formData.get('file') as File;
         const communitySlug = formData.get('communitySlug') as string;
-        const customTitle = formData.get('customTitle') as string; // <--- NEW
+        const customTitle = formData.get('customTitle') as string;
 
         if (!file || !communitySlug) {
             return NextResponse.json({ error: 'Missing file or community' }, { status: 400 });
@@ -93,17 +115,13 @@ export async function POST(req: NextRequest) {
 
             // --- LOGIC SPLIT: Manual vs Auto ---
             if (customTitle && customTitle.trim()) {
-                // A. MANUAL OVERRIDE
                 finalTitle = customTitle.trim();
-
-                // Create a clean slug from the MANUAL title
                 finalSlug = finalTitle.toLowerCase()
-                        .replace(/[^a-z0-9]/g, '-') // replace non-alphanumeric with dash
-                        .replace(/-+/g, '-')        // remove repeated dashes
-                        .replace(/^-|-$/g, '')      // trim dashes
+                        .replace(/[^a-z0-9]/g, '-')
+                        .replace(/-+/g, '-')
+                        .replace(/^-|-$/g, '')
                     + '.pdf';
 
-                // Still try to guess category from the manual title (e.g. "2025 Bylaws" -> Governing)
                 const lowerTitle = finalTitle.toLowerCase();
                 if (lowerTitle.includes('bylaw') || lowerTitle.includes('rule') || lowerTitle.includes('ccr') || lowerTitle.includes('declaration')) {
                     category = 'Governing';
@@ -111,14 +129,13 @@ export async function POST(req: NextRequest) {
                     category = 'Forms';
                 }
             } else {
-                // B. AUTO NAMING (Existing Logic)
                 const smartDetails = getSmartDetails(file.name);
                 finalSlug = smartDetails.slug;
                 finalTitle = smartDetails.title;
                 category = smartDetails.category;
             }
 
-            // --- COLLISION DETECTION (Shared by both) ---
+            // --- COLLISION DETECTION ---
             let counter = 1;
             let isUnique = false;
             const baseSlug = finalSlug;
@@ -126,17 +143,15 @@ export async function POST(req: NextRequest) {
 
             while (!isUnique) {
                 const checkRes = await client.query(
-                    `SELECT id FROM community_downloads 
-                     WHERE community_id = $1 
-                     AND (title = $2 OR file_url LIKE $3)`,
+                    `SELECT id FROM community_downloads
+                     WHERE community_id = $1
+                       AND (title = $2 OR file_url LIKE $3)`,
                     [communityId, finalTitle, `%/${finalSlug}`]
                 );
 
                 if (checkRes.rows.length > 0) {
                     counter++;
-                    // "bylaws.pdf" -> "bylaws-2.pdf"
                     finalSlug = baseSlug.replace('.pdf', `-${counter}.pdf`);
-                    // "Bylaws" -> "Bylaws (v2)"
                     finalTitle = `${baseTitle} (v${counter})`;
                 } else {
                     isUnique = true;
@@ -157,7 +172,7 @@ export async function POST(req: NextRequest) {
 
             const { data: { publicUrl } } = supabase.storage.from('community-files').getPublicUrl(storagePath);
 
-            // DB Insert
+            // DB Insert (Downloads)
             await client.query(
                 `INSERT INTO community_downloads (community_id, title, category, file_url)
                  VALUES ($1, $2, $3, $4)`,
