@@ -1,12 +1,11 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { useUser } from '@clerk/nextjs'; // <--- IMPORT CLERK HOOK
+import { useUser } from '@clerk/nextjs';
 import { Mail, Building2, Trash2, CheckCircle, Plus, BookOpen, Upload, FileText, Loader, Filter, ShieldAlert } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 // --- CONFIGURATION ---
-// Add all emails that should have admin access here
 const AUTHORIZED_EMAILS = [
     "amy@communityfocusnc.com",
     "rconwayak@gmail.com",
@@ -44,7 +43,7 @@ interface Document {
 }
 
 export default function AdminDashboard() {
-    const { user, isLoaded } = useUser(); // <--- GET USER DATA
+    const { user, isLoaded } = useUser();
     const router = useRouter();
     const [activeTab, setActiveTab] = useState<'inbox' | 'communities' | 'knowledge'>('inbox');
 
@@ -69,10 +68,8 @@ export default function AdminDashboard() {
         if (isLoaded && user) {
             const email = user.primaryEmailAddress?.emailAddress;
             if (email && !AUTHORIZED_EMAILS.includes(email)) {
-                // Optional: Redirect them home automatically after 3 seconds
-                // setTimeout(() => router.push('/'), 3000);
+                // Optional: Redirect logic here
             } else {
-                // Only load data if they are authorized
                 loadData();
             }
         }
@@ -95,7 +92,6 @@ export default function AdminDashboard() {
         }
     };
 
-    // --- LOADING STATE ---
     if (!isLoaded) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -104,7 +100,6 @@ export default function AdminDashboard() {
         );
     }
 
-    // --- SECURITY GATE ---
     const userEmail = user?.primaryEmailAddress?.emailAddress;
     if (!userEmail || !AUTHORIZED_EMAILS.includes(userEmail)) {
         return (
@@ -126,7 +121,7 @@ export default function AdminDashboard() {
         );
     }
 
-    // --- DATA ACTIONS (SAME AS BEFORE) ---
+    // --- DATA ACTIONS ---
     const handleAddCommunity = async (e: React.FormEvent) => {
         e.preventDefault();
         const res = await fetch('/api/admin/communities', {
@@ -213,9 +208,15 @@ export default function AdminDashboard() {
         loadData();
     };
 
-    const handleDeleteDocument = async (filename: string) => {
-        if (!confirm(`Delete "${filename}" and all its knowledge?`)) return;
-        await fetch(`/api/admin/documents?id=${encodeURIComponent(filename)}`, { method: 'DELETE' });
+    // --- UPDATED DELETE FUNCTION ---
+    // Now accepts communityId to target the exact file record
+    const handleDeleteDocument = async (filename: string, communityId: number) => {
+        if (!confirm(`Permanently delete "${filename}"? This will remove it from the website, storage, and AI.`)) return;
+
+        await fetch(`/api/admin/documents?id=${encodeURIComponent(filename)}&communityId=${communityId}`, {
+            method: 'DELETE'
+        });
+
         loadData();
     };
 
@@ -404,8 +405,9 @@ export default function AdminDashboard() {
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
                                                     <button
-                                                        onClick={() => handleDeleteDocument(doc.filename)}
+                                                        onClick={() => handleDeleteDocument(doc.filename, doc.community_id)}
                                                         className="text-slate-300 hover:text-red-500 p-2 transition-colors"
+                                                        title="Delete File"
                                                     >
                                                         <Trash2 className="w-5 h-5" />
                                                     </button>

@@ -1,21 +1,19 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import pool from '@/lib/db';
+import { createClient } from '@supabase/supabase-js';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 // --- HELPERS ---
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-// UPDATED: Robust Retry Logic with Exponential Backoff
 async function generateWithRetry(operation: () => Promise<any>, retries = 5) {
     for (let i = 0; i < retries; i++) {
         try {
             return await operation();
         } catch (error: any) {
-            // Check for 429 (Rate Limit) or 503 (Service Overload)
             if ((error.status === 429 || error.status === 503 || error.message?.includes('429')) && i < retries - 1) {
-                // Wait 10s, 20s, 40s, 80s... (+ random jitter to prevent thundering herd)
                 const baseWait = 10000 * Math.pow(2, i);
                 const jitter = Math.random() * 2000;
                 const waitTime = baseWait + jitter;
@@ -30,7 +28,6 @@ async function generateWithRetry(operation: () => Promise<any>, retries = 5) {
     throw new Error("Max retries exceeded. API is too busy.");
 }
 
-// --- SMART CHUNKER ---
 function smartChunking(text: string, chunkSize = 2000, overlap = 200): string[] {
     const chunks: string[] = [];
     let start = 0;
@@ -99,7 +96,6 @@ export async function POST(req: Request) {
             const visionModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
             const base64Data = buffer.toString('base64');
             try {
-                // OCR Call with Retry
                 const result = await generateWithRetry(() => visionModel.generateContent([
                     { inlineData: { data: base64Data, mimeType: "application/pdf" } },
                     `Transcribe the full text of this document verbatim. Return ONLY the text.`
@@ -125,7 +121,6 @@ export async function POST(req: Request) {
 
         for (const [index, chunk] of chunks.entries()) {
             try {
-                // Embedding Call with Retry
                 const result = await generateWithRetry(() => embedModel.embedContent(chunk));
                 const embedding = result.embedding.values;
 
@@ -134,8 +129,6 @@ export async function POST(req: Request) {
                     [communityId, file.name, chunk, JSON.stringify(embedding)]
                 );
                 insertedCount++;
-
-                // UPDATED: Increased delay to 1s to prevent rate limits during heavy inserts
                 await delay(1000);
 
                 if (insertedCount % 5 === 0) console.log(`   Saved ${insertedCount}/${chunks.length} chunks...`);
@@ -158,10 +151,58 @@ export async function DELETE(req: Request) {
     try {
         const { searchParams } = new URL(req.url);
         const filename = searchParams.get('id');
-        if (!filename) return NextResponse.json({ error: "Filename required" }, { status: 400 });
-        await pool.query('DELETE FROM community_docs WHERE filename = $1', [filename]);
+        const communityId = searchParams.get('communityId');
+
+        if (!filename || !communityId) {
+            return NextResponse.json({ error: "Filename and Community ID required" }, { status: 400 });
+        }
+
+        // 1. Get Community Slug (Needed for Supabase Storage Path)
+        const commResult = await pool.query('SELECT slug FROM communities WHERE id = $1', [communityId]);
+        if (commResult.rows.length === 0) {
+            return NextResponse.json({ error: "Community not found" }, { status: 404 });
+        }
+        const slug = commResult.rows[0].slug;
+
+        // 2. Initialize Supabase (Service Role for Admin Access)
+        const supabase = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
+
+        // 3. Delete from Supabase Storage
+        // Path format: "community-slug/filename.pdf"
+        const storagePath = `${slug}/${filename}`;
+        const { error: storageError } = await supabase.storage
+            .from('community-files')
+            .remove([storagePath]);
+
+        if (storageError) {
+            console.error("Storage Delete Error:", storageError);
+            // We continue anyway to clean up the DB records
+        }
+
+        // 4. Delete Public Download Link (community_downloads)
+        // We match by checking if the file_url ends with the filename OR if title matches
+        await pool.query(`
+            DELETE FROM community_downloads 
+            WHERE community_id = $1 
+            AND (file_url LIKE $2 OR title = $3)
+        `, [communityId, `%/${filename}`, filename]);
+
+        // 5. Delete AI Knowledge (community_docs)
+        await pool.query(`
+            DELETE FROM community_docs 
+            WHERE community_id = $1 
+            AND filename = $2
+        `, [communityId, filename]);
+
+        console.log(`[Delete] Successfully removed ${filename} for community ${communityId}`);
+
         return NextResponse.json({ success: true });
+
     } catch (error: any) {
+        console.error("Delete Error:", error);
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
