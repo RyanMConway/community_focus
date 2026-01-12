@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db'; // Your Postgres connection
 import { createClient } from '@supabase/supabase-js';
-import pdf from 'pdf-parse';
+// We use 'require' because pdf-parse is an older library that doesn't support 'import' well
+const pdf = require('pdf-parse');
 
 // Initialize Supabase Client (for Storage only)
 const supabase = createClient(
