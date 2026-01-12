@@ -7,6 +7,7 @@ export default function AdminUploadPage() {
     const [communities, setCommunities] = useState<any[]>([]);
     const [selectedSlug, setSelectedSlug] = useState('');
     const [file, setFile] = useState<File | null>(null);
+    const [customTitle, setCustomTitle] = useState(''); // <--- NEW STATE
     const [status, setStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
     const [message, setMessage] = useState('');
 
@@ -23,6 +24,11 @@ export default function AdminUploadPage() {
         formData.append('file', file);
         formData.append('communitySlug', selectedSlug);
 
+        // <--- NEW: Send the custom title if it exists
+        if (customTitle.trim()) {
+            formData.append('customTitle', customTitle.trim());
+        }
+
         try {
             const res = await fetch('/api/admin/upload', {
                 method: 'POST',
@@ -35,6 +41,9 @@ export default function AdminUploadPage() {
 
             setStatus('success');
             setMessage(`Successfully uploaded: ${data.title}`);
+            // Optional: Reset form fields after success
+            setFile(null);
+            setCustomTitle('');
         } catch (error: any) {
             setStatus('error');
             setMessage(error.message);
@@ -67,7 +76,7 @@ export default function AdminUploadPage() {
                 </div>
 
                 {/* 2. File Picker */}
-                <div className="mb-8">
+                <div className="mb-4">
                     <label className="block text-sm font-semibold text-slate-700 mb-2">Choose PDF</label>
                     <input
                         type="file"
@@ -82,7 +91,21 @@ export default function AdminUploadPage() {
                     />
                 </div>
 
-                {/* 3. Submit Button */}
+                {/* 3. NEW: Manual Title Override */}
+                <div className="mb-8">
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">
+                        Custom Title <span className="text-slate-400 font-normal">(Optional - overrides auto-naming)</span>
+                    </label>
+                    <input
+                        type="text"
+                        placeholder="e.g. 2025 Budget Approval"
+                        value={customTitle}
+                        onChange={(e) => setCustomTitle(e.target.value)}
+                        className="w-full p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand/50 outline-none"
+                    />
+                </div>
+
+                {/* 4. Submit Button */}
                 <button
                     onClick={handleUpload}
                     disabled={!file || !selectedSlug || status === 'uploading'}
@@ -95,7 +118,7 @@ export default function AdminUploadPage() {
                     )}
                 </button>
 
-                {/* 4. Status Messages */}
+                {/* 5. Status Messages */}
                 {status === 'success' && (
                     <div className="mt-6 p-4 bg-green-50 text-green-700 rounded-lg flex items-center gap-2">
                         <CheckCircle className="w-5 h-5" />
