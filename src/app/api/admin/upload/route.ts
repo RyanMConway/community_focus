@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { createClient } from '@supabase/supabase-js';
-import PDFParser from 'pdf2json';
-
-// --- CONFIGURATION: Fix Timeout Issues ---
-export const maxDuration = 60; // Allow up to 60 seconds (Hobby plan limit)
-export const dynamic = 'force-dynamic';
 
 // --- HELPER: Humanize Messy Filenames ---
 function humanizeTitle(filename: string): string {
@@ -22,7 +17,6 @@ function humanizeTitle(filename: string): string {
 function getSmartDetails(filename: string) {
     const lower = filename.toLowerCase();
 
-    // 1. Governing Docs
     if (lower.includes('article') && lower.includes('incorp'))
         return { slug: 'articles.pdf', title: 'Articles of Incorporation', category: 'Governing' };
     if (lower.includes('bylaw'))
@@ -32,7 +26,6 @@ function getSmartDetails(filename: string) {
     if (lower.includes('rule') || lower.includes('reg'))
         return { slug: 'rules-and-regs.pdf', title: 'Rules & Regulations', category: 'Governing' };
 
-    // 2. ARC
     if (lower.includes('arc') || lower.includes('architect') || lower.includes('acc')) {
         const humanTitle = humanizeTitle(filename);
         if (lower.includes('guide') || lower.includes('standard'))
@@ -40,49 +33,9 @@ function getSmartDetails(filename: string) {
         return { slug: 'arc-form.pdf', title: humanTitle, category: 'Forms' };
     }
 
-    // 3. Fallback
     const humanTitle = humanizeTitle(filename);
     const safeSlug = filename.replace(/\.pdf$/i, '').replace(/[^a-z0-9]/gi, '-').toLowerCase() + '.pdf';
     return { slug: safeSlug, title: humanTitle, category: 'General' };
-}
-
-// --- HELPER: Extract Text with Page Numbers ---
-async function parsePDF(buffer: Buffer): Promise<string> {
-    return new Promise((resolve, reject) => {
-        // FIX 1: Change 'true' to 'false' so we get the JSON structure (Pages), not just raw string.
-        const pdfParser = new PDFParser(null, false);
-
-        pdfParser.on("pdfParser_dataError", (errData: any) => reject(errData.parserError));
-
-        pdfParser.on("pdfParser_dataReady", (pdfData: any) => {
-            // FIX 2: Safety Check - If PDF is weird/empty, don't crash the server
-            if (!pdfData || !pdfData.formImage || !pdfData.formImage.Pages) {
-                console.warn("PDF Parsing Warning: No text structure found.");
-                resolve("");
-                return;
-            }
-
-            let parsedText = "";
-
-            // Now this loop will work because 'false' gave us the structure
-            pdfData.formImage.Pages.forEach((page: any, pageIndex: number) => {
-                const pageNum = pageIndex + 1;
-                parsedText += `\n--- [PAGE ${pageNum}] ---\n`;
-
-                if (page.Texts) {
-                    page.Texts.forEach((textItem: any) => {
-                        if (textItem.R && textItem.R[0] && textItem.R[0].T) {
-                            const textSnippet = decodeURIComponent(textItem.R[0].T);
-                            parsedText += textSnippet + " ";
-                        }
-                    });
-                }
-            });
-            resolve(parsedText);
-        });
-
-        pdfParser.parseBuffer(buffer);
-    });
 }
 
 export async function POST(req: NextRequest) {
@@ -96,6 +49,8 @@ export async function POST(req: NextRequest) {
         const file = formData.get('file') as File;
         const communitySlug = formData.get('communitySlug') as string;
         const customTitle = formData.get('customTitle') as string;
+        // RECEIVE EXTRACTED TEXT
+        const extractedText = formData.get('extractedText') as string;
 
         if (!file || !communitySlug) {
             return NextResponse.json({ error: 'Missing file or community' }, { status: 400 });
@@ -109,11 +64,11 @@ export async function POST(req: NextRequest) {
             const communityId = commResult.rows[0].id;
             const communityName = commResult.rows[0].name;
 
+            // --- NAMING LOGIC ---
             let finalSlug = '';
             let finalTitle = '';
             let category = 'General';
 
-            // --- LOGIC SPLIT: Manual vs Auto ---
             if (customTitle && customTitle.trim()) {
                 finalTitle = customTitle.trim();
                 finalSlug = finalTitle.toLowerCase()
@@ -143,9 +98,9 @@ export async function POST(req: NextRequest) {
 
             while (!isUnique) {
                 const checkRes = await client.query(
-                    `SELECT id FROM community_downloads
-                     WHERE community_id = $1
-                       AND (title = $2 OR file_url LIKE $3)`,
+                    `SELECT id FROM community_downloads 
+                     WHERE community_id = $1 
+                     AND (title = $2 OR file_url LIKE $3)`,
                     [communityId, finalTitle, `%/${finalSlug}`]
                 );
 
@@ -160,7 +115,7 @@ export async function POST(req: NextRequest) {
 
             const storagePath = `${communitySlug}/${finalSlug}`;
 
-            // Upload
+            // --- UPLOAD TO STORAGE ---
             const fileBuffer = await file.arrayBuffer();
             const buffer = Buffer.from(fileBuffer);
 
@@ -172,16 +127,16 @@ export async function POST(req: NextRequest) {
 
             const { data: { publicUrl } } = supabase.storage.from('community-files').getPublicUrl(storagePath);
 
-            // DB Insert (Downloads)
+            // --- DB INSERT (Downloads) ---
             await client.query(
                 `INSERT INTO community_downloads (community_id, title, category, file_url)
                  VALUES ($1, $2, $3, $4)`,
                 [communityId, finalTitle, category, publicUrl]
             );
 
-            // AI Extract
-            let rawText = await parsePDF(buffer);
-            let textContent = `[DOCUMENT: ${finalTitle} for ${communityName}]\n${rawText}`;
+            // --- DB INSERT (AI Docs) ---
+            // Use the text we got from the Frontend!
+            let textContent = `[DOCUMENT: ${finalTitle} for ${communityName}]\n${extractedText || "(No text could be extracted - Scanned Document?)"}`;
             if (textContent.length > 100000) textContent = textContent.substring(0, 100000);
 
             await client.query(
