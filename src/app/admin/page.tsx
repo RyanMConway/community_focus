@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
-// ... [Keep existing CONFIGURATION and TYPES unchanged] ...
+// --- CONFIGURATION ---
 const AUTHORIZED_EMAILS = [
     "amy@communityfocusnc.com",
     "rconwayak@gmail.com",
@@ -72,7 +72,7 @@ export default function AdminDashboard() {
 
     // Filter State
     const [selectedCommId, setSelectedCommId] = useState<string>(""); // For Knowledge Base
-    const [analyticsCommId, setAnalyticsCommId] = useState<string>(""); // <--- NEW: For Analytics
+    const [analyticsCommId, setAnalyticsCommId] = useState<string>(""); // For Analytics
 
     // --- ACCESS CONTROL CHECK ---
     useEffect(() => {
@@ -91,7 +91,7 @@ export default function AdminDashboard() {
         if (activeTab === 'analytics') {
             fetchAnalytics(); // Fetch immediately when tab opens
         }
-    }, [activeTab, analyticsCommId]); // <--- Re-fetch when filter changes
+    }, [activeTab, analyticsCommId]); // Re-fetch when filter changes
 
     const loadData = async () => {
         try {
@@ -122,7 +122,54 @@ export default function AdminDashboard() {
         }
     };
 
-    // --- NEW: Handle Clearing Data ---
+    // --- DATA ACTIONS ---
+    const handleAddCommunity = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const res = await fetch('/api/admin/communities', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newComm)
+        });
+
+        if (res.ok) {
+            loadData();
+            setIsAdding(false);
+            setNewComm({ name: '', city: 'Durham, NC', portal_url: '', description: '' });
+        }
+    };
+
+    const handleDeleteCommunity = async (id: number) => {
+        if (!confirm('Delete this community? This cannot be undone.')) return;
+        await fetch(`/api/admin/communities?id=${id}`, { method: 'DELETE' });
+        setCommunities(prev => prev.filter(c => c.id !== id));
+    };
+
+    // --- RESTORED FUNCTION ---
+    const handleMarkRead = async (id: number) => {
+        setMessages(prev => prev.map(m => m.id === id ? { ...m, status: 'read' } : m));
+        await fetch(`/api/admin/messages/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'read' })
+        });
+    };
+
+    const handleDeleteMessage = async (id: number) => {
+        if (!confirm('Delete message?')) return;
+        setMessages(prev => prev.filter(m => m.id !== id));
+        await fetch(`/api/admin/messages/${id}`, { method: 'DELETE' });
+    };
+
+    const handleDeleteDocument = async (filename: string, communityId: number) => {
+        if (!confirm(`Permanently delete "${filename}"? This will remove it from the website, storage, and AI.`)) return;
+
+        await fetch(`/api/admin/documents?id=${encodeURIComponent(filename)}&communityId=${communityId}`, {
+            method: 'DELETE'
+        });
+
+        loadData();
+    };
+
     const handleClearAnalytics = async () => {
         const msg = analyticsCommId
             ? "Are you sure you want to clear analytics for THIS community?"
@@ -138,8 +185,6 @@ export default function AdminDashboard() {
             alert("Failed to clear data");
         }
     };
-
-    // ... [Keep Access Denied and SimpleBarChart checks] ...
 
     // --- HELPER: Simple Bar Chart Component ---
     const SimpleBarChart = ({ data, total }: { data: { label: string, value: number, color?: string }[], total: number }) => (
@@ -164,7 +209,29 @@ export default function AdminDashboard() {
     if (!isLoaded) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader className="w-8 h-8 text-brand animate-spin" /></div>;
 
     const userEmail = user?.primaryEmailAddress?.emailAddress;
-    if (!userEmail || !AUTHORIZED_EMAILS.includes(userEmail)) return <div>Access Denied</div>;
+    if (!userEmail || !AUTHORIZED_EMAILS.includes(userEmail)) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-6 text-center">
+                <div className="bg-red-50 p-6 rounded-2xl border border-red-100 max-w-md w-full">
+                    <ShieldAlert className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                    <h1 className="text-2xl font-bold text-red-700 mb-2">Access Denied</h1>
+                    <p className="text-red-600 mb-6">
+                        You are logged in as <strong>{userEmail}</strong>, but this account does not have administrator privileges.
+                    </p>
+                    <button
+                        onClick={() => router.push('/')}
+                        className="bg-white border border-red-200 text-red-700 px-6 py-2 rounded-lg font-bold hover:bg-red-50 transition-colors"
+                    >
+                        Return Home
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    const filteredDocuments = selectedCommId
+        ? documents.filter(d => d.community_id.toString() === selectedCommId)
+        : [];
 
     return (
         <div className="min-h-screen bg-slate-50 pb-20">
@@ -360,7 +427,7 @@ export default function AdminDashboard() {
                     </div>
                 )}
 
-                {/* === TAB 4: ANALYTICS === */}
+                {/* TAB 4: ANALYTICS */}
                 {activeTab === 'analytics' && (
                     <div className="space-y-8 animate-in fade-in duration-500">
                         {/* 1. Header & Controls */}
