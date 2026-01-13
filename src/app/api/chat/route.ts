@@ -5,11 +5,10 @@ import pool from '@/lib/db';
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 const GLOBAL_LAWS_COMMUNITY = "North Carolina General Statutes";
 
-// DEFINED CONSTANTS
-const MASTER_PORTAL_URL = "https://cfnc.cincwebaxis.com";
-const MASTER_WORK_ORDER_URL = "https://cfnc.cincwebaxis.com/workorders";
+// OFFICE FALLBACK
 const OFFICE_PHONE = "(919) 564-9134";
 const OFFICE_EMAIL = "info@communityfocusnc.com";
+const MASTER_WORK_ORDER_URL = "https://cfnc.cincwebaxis.com/workorders";
 
 export async function POST(request: Request) {
     try {
@@ -28,47 +27,39 @@ export async function POST(request: Request) {
         historyLines.push(`User: ${message}`);
         const historyText = historyLines.join('\n');
 
-        // --- STEP 2: CONTEXTUAL ANALYSIS (UPDATED FOR ANALYTICS) ---
+        // --- STEP 2: ANALYZE INTENT ---
         const analyzerModel = genAI.getGenerativeModel({
             model: "gemini-2.0-flash",
             generationConfig: { responseMimeType: "application/json" }
         });
 
-        // We ask Gemini to categorize the question while it analyzes it
         const analyzerPrompt = `
-    You are a conversation analyzer for a Property Management AI.
-    
-    **USER'S COMMUNITY:** "${communityName}"
-    
-    **CONVERSATION HISTORY:**
-    ${historyText}
-    
-    **TASK:**
-    1. Identify the User's **Role** (Homeowner, Tenant, Board Member). If unknown, assume "Homeowner".
-    2. Identify the User's **Core Question**.
-    3. Generate a **Search Query** for the database.
-    4. **Categorize** the question into EXACTLY one of these: ["Maintenance", "Documents", "Amenities", "Rules", "Billing", "Events", "General", "Complaint"].
-    5. Extract a short 2-5 word **Topic** (e.g., "Trash Pickup", "Pool Hours", "Noise Complaint", "ARC Request").
+        You are a conversation analyzer.
+        
+        **CONTEXT:** User is asking about "${communityName}".
+        **HISTORY:** ${historyText}
 
-    **OUTPUT JSON:**
-    {
-      "user_role": "extracted role",
-      "core_question": "The user's original question",
-      "search_query": "Query for the database",
-      "category": "One of the allowed categories",
-      "topic": "Short topic summary"
-    }
-    `;
+        **TASK:**
+        1. Classify category: ["Complaint", "Documents", "Maintenance", "General", "Rules"].
+        2. If "Complaint", identify if it is about a neighbor/noise/pet.
+        3. If "Documents", identify keywords (e.g., "Bylaws", "ARC Form").
+        4. Generate a search query.
+
+        **OUTPUT JSON:**
+        {
+          "category": "Category",
+          "is_neighbor_complaint": boolean,
+          "document_keywords": "keywords if docs requested",
+          "search_query": "search string",
+          "topic": "short topic summary"
+        }
+        `;
 
         const analysisResult = await analyzerModel.generateContent(analyzerPrompt);
-        let rawAnalysis = JSON.parse(analysisResult.response.text());
-        const analysis = Array.isArray(rawAnalysis) ? rawAnalysis[0] : rawAnalysis;
+        const analysis = JSON.parse(analysisResult.response.text());
+        console.log("Analysis:", analysis);
 
-        console.log("Analysis & Categorization:", analysis);
-
-        // --- STEP 2.5: SAVE ANALYTICS (FIRE AND FORGET) ---
-        // We do not await this because we don't want to slow down the user's answer.
-        // We use a subquery to find the ID from the name.
+        // --- STEP 2.5: LOG ANALYTICS (Async) ---
         pool.query(
             `INSERT INTO chat_analytics (community_id, category, topic) 
              SELECT id, $1, $2 FROM communities WHERE name = $3`,
@@ -76,81 +67,93 @@ export async function POST(request: Request) {
         ).catch(err => console.error("Analytics Log Error:", err));
 
 
-        // --- STEP 3: DATABASE SEARCH ---
+        // --- STEP 3: DATA FETCHING (Parallel) ---
         const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
-        const embeddingResult = await embeddingModel.embedContent(analysis.search_query);
+
+        const [embeddingResult, managerRes, filesRes] = await Promise.all([
+            // A. Get Embeddings for vector search
+            embeddingModel.embedContent(analysis.search_query),
+
+            // B. Get Manager Info
+            pool.query(`
+                SELECT m.name, m.email, m.phone 
+                FROM managers m 
+                JOIN communities c ON c.manager_id = m.id 
+                WHERE c.name = $1
+            `, [communityName]),
+
+            // C. Search for Downloadable Files (if category is Documents or General)
+            pool.query(`
+                SELECT title, file_url 
+                FROM community_downloads cd
+                JOIN communities c ON cd.community_id = c.id
+                WHERE c.name = $1 
+                AND (title ILIKE $2 OR category ILIKE $2)
+                LIMIT 3
+            `, [communityName, `%${analysis.document_keywords || analysis.topic}%`])
+        ]);
+
         const embedding = embeddingResult.embedding.values;
+        const manager = managerRes.rows[0] || { name: 'The Office', email: OFFICE_EMAIL, phone: OFFICE_PHONE };
+        const foundFiles = filesRes.rows;
 
-        // QUERY A: Local Community Docs
-        const localQuery = pool.query(
-            `SELECT cd.content, c.name as community_name, (cd.embedding <=> $1::vector) as distance
+        // --- STEP 4: VECTOR SEARCH (Knowledge Base) ---
+        const vectorQuery = pool.query(
+            `SELECT cd.content, c.name as community_name
              FROM community_docs cd
                       JOIN communities c ON cd.community_id = c.id
-             WHERE c.name = $2
-             ORDER BY distance ASC
-                 LIMIT 10`,
-            [JSON.stringify(embedding), communityName]
+             WHERE c.name = $1
+             ORDER BY (cd.embedding <=> $2::vector) ASC
+                 LIMIT 6`,
+            [communityName, JSON.stringify(embedding)]
         );
+        const vectorRes = await vectorQuery;
 
-        // QUERY B: Global Laws
-        const globalQuery = pool.query(
-            `SELECT cd.content, c.name as community_name, (cd.embedding <=> $1::vector) as distance
-             FROM community_docs cd
-                      JOIN communities c ON cd.community_id = c.id
-             WHERE c.name = $2
-             ORDER BY distance ASC
-                 LIMIT 5`,
-            [JSON.stringify(embedding), GLOBAL_LAWS_COMMUNITY]
-        );
+        // --- STEP 5: BUILD SYSTEM PROMPT ---
+        const contextDocs = vectorRes.rows.map(r => r.content).join("\n\n");
+        const fileLinks = foundFiles.map(f => `- [Download ${f.title}](${f.file_url})`).join("\n");
 
-        const [localResult, globalResult] = await Promise.all([localQuery, globalQuery]);
-        const allRows = [...localResult.rows, ...globalResult.rows];
-
-        const contextText = allRows.map(row =>
-            `[SOURCE: ${row.community_name}]\n${row.content}`
-        ).join("\n\n");
-
-        // --- STEP 4: GENERATE ANSWER ---
         const chatModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
-        const answerPrompt = `
-      You are the Community Focus Assistant, a helpful and clear AI for property management.
-      
-      **CONTEXT:**
-      - User Role: ${analysis.user_role}
-      - Community: ${communityName}
-      - Office Phone: ${OFFICE_PHONE}
-      - Office Email: ${OFFICE_EMAIL}
-      
-      **OFFICIAL DOCUMENTS:**
-      ${contextText}
-      
-      **USER QUESTION:**
-      "${analysis.core_question}"
-      
-      **TONE & STYLE GUIDELINES:**
-      1. **Speak Plainly:** Explain rules in simple, everyday language.
-      2. **Be Direct:** Answer the question first.
-      3. **Use Source:** Only use the provided Official Documents.
-      
-      **CRITICAL PROTOCOLS:**
-      1. **MAINTENANCE:** Direct to [Submit Work Order](${MASTER_WORK_ORDER_URL}).
-      2. **ARC REQUESTS:** Direct to [Submit ARC Request](${MASTER_PORTAL_URL}).
-      3. **CONTACT:** ${OFFICE_PHONE} or ${OFFICE_EMAIL}.
-      4. **EMERGENCY:** If urgent (fire/leak) and HOA responsibility, mention Emergency Work Order.
-      5. **PAYMENTS:** [Resident Portal](${MASTER_PORTAL_URL}).
-    `;
+        const systemPrompt = `
+        You are the Community Focus Assistant.
+        
+        **MANAGER CONTACT:**
+        - Name: ${manager.name}
+        - Email: ${manager.email || OFFICE_EMAIL}
+        - Phone: ${manager.phone || OFFICE_PHONE}
 
-        const finalResult = await chatModel.generateContent(answerPrompt);
-        const finalResponse = await finalResult.response.text();
+        **AVAILABLE FILES (Use these links!):**
+        ${fileLinks || "No direct download links found."}
 
-        return NextResponse.json({ reply: finalResponse });
+        **KNOWLEDGE BASE:**
+        ${contextDocs}
+
+        **INSTRUCTIONS:**
+        1. **COMPLAINTS:** If this is a neighbor/noise complaint (${analysis.is_neighbor_complaint}):
+           - Be empathetic and professional.
+           - Assure the user that Community Focus takes these issues seriously.
+           - SUGGEST: "Please reach out to your Community Manager, ${manager.name}, directly at ${manager.email} or ${manager.phone} so we can address this privately."
+
+        2. **DOCUMENTS:** If the user wants a document and you see it in "AVAILABLE FILES" above:
+           - You MUST provide the Markdown link.
+           - Example: "You can download the bylaws here: [Download Bylaws](url)."
+
+        3. **MAINTENANCE:** Direct to [Work Order Portal](${MASTER_WORK_ORDER_URL}).
+
+        4. **GENERAL:** Answer based on the Knowledge Base. Keep it simple and helpful.
+        `;
+
+        // --- STEP 6: GENERATE ---
+        const result = await chatModel.generateContent([
+            { text: systemPrompt },
+            { text: `User Question: ${message}` }
+        ]);
+
+        return NextResponse.json({ reply: result.response.text() });
 
     } catch (error: any) {
         console.error('Chat API Error:', error);
-        return NextResponse.json(
-            { error: 'Internal Server Error', details: error.message },
-            { status: 500 }
-        );
+        return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }

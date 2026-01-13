@@ -5,7 +5,7 @@ import { useUser } from '@clerk/nextjs';
 import {
     Mail, Building2, Trash2, CheckCircle, Plus, BookOpen,
     Upload, FileText, Loader, Filter, ShieldAlert, BarChart3,
-    TrendingUp, MessageSquare, AlertCircle, RefreshCw
+    TrendingUp, MessageSquare, AlertCircle, RefreshCw, Users, Briefcase
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -37,6 +37,14 @@ interface Community {
     slug: string;
 }
 
+interface Manager {
+    id: number;
+    name: string;
+    email: string;
+    phone: string;
+    communities: { id: number; name: string }[];
+}
+
 interface Document {
     id: string;
     filename: string;
@@ -57,11 +65,12 @@ interface AnalyticsData {
 export default function AdminDashboard() {
     const { user, isLoaded } = useUser();
     const router = useRouter();
-    const [activeTab, setActiveTab] = useState<'inbox' | 'communities' | 'knowledge' | 'analytics'>('inbox');
+    const [activeTab, setActiveTab] = useState<'inbox' | 'communities' | 'managers' | 'knowledge' | 'analytics'>('inbox');
 
     // Data State
     const [messages, setMessages] = useState<Message[]>([]);
     const [communities, setCommunities] = useState<Community[]>([]);
+    const [managers, setManagers] = useState<Manager[]>([]);
     const [documents, setDocuments] = useState<Document[]>([]);
     const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -69,6 +78,10 @@ export default function AdminDashboard() {
     // Form State
     const [isAdding, setIsAdding] = useState(false);
     const [newComm, setNewComm] = useState({ name: '', city: 'Durham, NC', portal_url: '', description: '' });
+
+    // Manager Editing State
+    const [editingManager, setEditingManager] = useState<Manager | null>(null);
+    const [isManagerModalOpen, setIsManagerModalOpen] = useState(false);
 
     // Filter State
     const [selectedCommId, setSelectedCommId] = useState<string>("");
@@ -88,9 +101,8 @@ export default function AdminDashboard() {
 
     // Load Data based on active tab
     useEffect(() => {
-        if (activeTab === 'analytics') {
-            fetchAnalytics();
-        }
+        if (activeTab === 'analytics') fetchAnalytics();
+        if (activeTab === 'managers') loadManagers();
     }, [activeTab, analyticsCommId]);
 
     const loadData = async () => {
@@ -110,6 +122,12 @@ export default function AdminDashboard() {
         }
     };
 
+    const loadManagers = async () => {
+        const res = await fetch('/api/admin/managers');
+        const data = await res.json();
+        setManagers(data);
+    };
+
     const fetchAnalytics = async () => {
         try {
             const query = analyticsCommId ? `?range=30d&communityId=${analyticsCommId}` : '?range=30d';
@@ -122,6 +140,36 @@ export default function AdminDashboard() {
     };
 
     // --- ACTIONS ---
+
+    const handleSaveManager = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingManager) return;
+
+        const method = editingManager.id === 0 ? 'POST' : 'PUT';
+
+        // Get selected communities from form
+        const form = e.target as HTMLFormElement;
+        const selectedCommIds = Array.from(form.elements)
+            .filter((el: any) => el.name === 'communities' && el.checked)
+            .map((el: any) => parseInt(el.value));
+
+        const payload = {
+            ...editingManager,
+            community_ids: selectedCommIds
+        };
+
+        const res = await fetch('/api/admin/managers', {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+            loadManagers();
+            setIsManagerModalOpen(false);
+            setEditingManager(null);
+        }
+    };
 
     const handleAddCommunity = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -160,58 +208,33 @@ export default function AdminDashboard() {
     };
 
     const handleDeleteDocument = async (filename: string, communityId: number) => {
-        if (!confirm(`Permanently delete "${filename}"? This will remove it from the website, storage, and AI.`)) return;
-        await fetch(`/api/admin/documents?id=${encodeURIComponent(filename)}&communityId=${communityId}`, {
-            method: 'DELETE'
-        });
+        if (!confirm(`Permanently delete "${filename}"?`)) return;
+        await fetch(`/api/admin/documents?id=${encodeURIComponent(filename)}&communityId=${communityId}`, { method: 'DELETE' });
         loadData();
     };
 
     const handleClearAnalytics = async () => {
-        const msg = analyticsCommId
-            ? "Are you sure you want to clear analytics for THIS community?"
-            : "Are you sure you want to clear ALL analytics data? This cannot be undone.";
-
+        const msg = analyticsCommId ? "Clear analytics for THIS community?" : "Clear ALL analytics data?";
         if (!confirm(msg)) return;
-
         try {
             const query = analyticsCommId ? `?communityId=${analyticsCommId}` : '';
             await fetch(`/api/admin/analytics${query}`, { method: 'DELETE' });
-            fetchAnalytics(); // Refresh
-        } catch (e) {
-            alert("Failed to clear data");
-        }
+            fetchAnalytics();
+        } catch (e) { alert("Failed"); }
     };
 
-    // --- NEW: Export to CSV ---
     const handleExportCSV = () => {
         if (!analytics) return;
-
-        // 1. Create the CSV Content
         const headers = ["Category", "Count", "Percentage"];
-        const rows = analytics.categories.map(c => [
-            c.category,
-            c.count,
-            `${Math.round((c.count / analytics.total) * 100)}%`
-        ]);
-
-        const csvContent = [
-            headers.join(","),
-            ...rows.map(row => row.join(","))
-        ].join("\n");
-
-        // 2. Create a Blob and Download
+        const rows = analytics.categories.map(c => [c.category, c.count, `${Math.round((c.count / analytics.total) * 100)}%`]);
+        const csvContent = [headers.join(","), ...rows.map(row => row.join(","))].join("\n");
         const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
-        link.setAttribute("href", url);
-        link.setAttribute("download", `community_focus_report_${new Date().toISOString().split('T')[0]}.csv`);
-        document.body.appendChild(link);
+        link.href = URL.createObjectURL(blob);
+        link.download = `report.csv`;
         link.click();
-        document.body.removeChild(link);
     };
 
-    // --- HELPER: Simple Bar Chart ---
     const SimpleBarChart = ({ data, total }: { data: { label: string, value: number, color?: string }[], total: number }) => (
         <div className="space-y-3">
             {data.map((item, i) => (
@@ -221,10 +244,7 @@ export default function AdminDashboard() {
                         <span className="text-slate-500">{item.value} ({total > 0 ? Math.round((item.value / total) * 100) : 0}%)</span>
                     </div>
                     <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
-                        <div
-                            className={`h-2.5 rounded-full ${item.color || 'bg-brand'}`}
-                            style={{ width: `${total > 0 ? (item.value / total) * 100 : 0}%` }}
-                        ></div>
+                        <div className={`h-2.5 rounded-full ${item.color || 'bg-brand'}`} style={{ width: `${total > 0 ? (item.value / total) * 100 : 0}%` }}></div>
                     </div>
                 </div>
             ))}
@@ -234,29 +254,9 @@ export default function AdminDashboard() {
     if (!isLoaded) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader className="w-8 h-8 text-brand animate-spin" /></div>;
 
     const userEmail = user?.primaryEmailAddress?.emailAddress;
-    if (!userEmail || !AUTHORIZED_EMAILS.includes(userEmail)) {
-        return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-6 text-center">
-                <div className="bg-red-50 p-6 rounded-2xl border border-red-100 max-w-md w-full">
-                    <ShieldAlert className="w-12 h-12 text-red-500 mx-auto mb-4" />
-                    <h1 className="text-2xl font-bold text-red-700 mb-2">Access Denied</h1>
-                    <p className="text-red-600 mb-6">
-                        You are logged in as <strong>{userEmail}</strong>, but this account does not have administrator privileges.
-                    </p>
-                    <button
-                        onClick={() => router.push('/')}
-                        className="bg-white border border-red-200 text-red-700 px-6 py-2 rounded-lg font-bold hover:bg-red-50 transition-colors"
-                    >
-                        Return Home
-                    </button>
-                </div>
-            </div>
-        );
-    }
+    if (!userEmail || !AUTHORIZED_EMAILS.includes(userEmail)) return <div>Access Denied</div>;
 
-    const filteredDocuments = selectedCommId
-        ? documents.filter(d => d.community_id.toString() === selectedCommId)
-        : [];
+    const filteredDocuments = selectedCommId ? documents.filter(d => d.community_id.toString() === selectedCommId) : [];
 
     return (
         <div className="min-h-screen bg-slate-50 pb-20">
@@ -275,8 +275,11 @@ export default function AdminDashboard() {
                         <button onClick={() => setActiveTab('communities')} className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'communities' ? 'bg-white text-brand-dark shadow-sm' : 'text-slate-300 hover:text-white'}`}>
                             <Building2 className="w-4 h-4" /> Communities
                         </button>
+                        <button onClick={() => setActiveTab('managers')} className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'managers' ? 'bg-white text-brand-dark shadow-sm' : 'text-slate-300 hover:text-white'}`}>
+                            <Users className="w-4 h-4" /> Managers
+                        </button>
                         <button onClick={() => setActiveTab('knowledge')} className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'knowledge' ? 'bg-white text-brand-dark shadow-sm' : 'text-slate-300 hover:text-white'}`}>
-                            <BookOpen className="w-4 h-4" /> Knowledge Base
+                            <BookOpen className="w-4 h-4" /> Knowledge
                         </button>
                         <button onClick={() => setActiveTab('analytics')} className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'analytics' ? 'bg-white text-brand-dark shadow-sm' : 'text-slate-300 hover:text-white'}`}>
                             <BarChart3 className="w-4 h-4" /> Analytics
@@ -353,7 +356,120 @@ export default function AdminDashboard() {
                     </div>
                 )}
 
-                {/* TAB 3: KNOWLEDGE BASE */}
+                {/* TAB 3: MANAGERS */}
+                {activeTab === 'managers' && (
+                    <div className="space-y-6">
+                        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-lg font-bold text-slate-800">Community Managers</h2>
+                                <button
+                                    onClick={() => {
+                                        setEditingManager({ id: 0, name: '', email: '', phone: '', communities: [] });
+                                        setIsManagerModalOpen(true);
+                                    }}
+                                    className="bg-brand hover:bg-brand-dark text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 text-sm"
+                                >
+                                    <Plus className="w-4 h-4" /> Add Manager
+                                </button>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {managers.map((m) => (
+                                    <div key={m.id} className="border border-slate-200 rounded-xl p-6 hover:shadow-md transition-shadow">
+                                        <div className="flex justify-between items-start mb-4">
+                                            <div>
+                                                <h3 className="font-bold text-lg text-slate-800">{m.name}</h3>
+                                                <div className="flex items-center gap-2 text-sm text-slate-500 mt-1">
+                                                    <Mail className="w-3 h-3" /> {m.email || "No email"}
+                                                </div>
+                                                <div className="flex items-center gap-2 text-sm text-slate-500">
+                                                    <Briefcase className="w-3 h-3" /> {m.phone || "No phone"}
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={() => { setEditingManager(m); setIsManagerModalOpen(true); }}
+                                                className="text-brand font-bold text-sm hover:underline"
+                                            >
+                                                Edit
+                                            </button>
+                                        </div>
+                                        <div className="bg-slate-50 rounded-lg p-3">
+                                            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Assigned Communities</h4>
+                                            {m.communities.length > 0 ? (
+                                                <div className="flex flex-wrap gap-2">
+                                                    {m.communities.map(c => (
+                                                        <span key={c.id} className="text-xs bg-white border border-slate-200 px-2 py-1 rounded text-slate-600 font-medium">
+                                                            {c.name}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <p className="text-xs text-slate-400 italic">No communities assigned.</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* EDIT MANAGER MODAL */}
+                        {isManagerModalOpen && editingManager && (
+                            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                                <div className="bg-white rounded-2xl w-full max-w-lg p-8 shadow-2xl">
+                                    <h3 className="text-xl font-bold mb-6">{editingManager.id === 0 ? 'Add Manager' : 'Edit Manager'}</h3>
+                                    <form onSubmit={handleSaveManager} className="space-y-4">
+                                        <input
+                                            placeholder="Full Name"
+                                            className="w-full p-3 border rounded-lg"
+                                            value={editingManager.name}
+                                            onChange={e => setEditingManager({...editingManager, name: e.target.value})}
+                                            required
+                                        />
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <input
+                                                placeholder="Email"
+                                                className="w-full p-3 border rounded-lg"
+                                                value={editingManager.email}
+                                                onChange={e => setEditingManager({...editingManager, email: e.target.value})}
+                                            />
+                                            <input
+                                                placeholder="Phone"
+                                                className="w-full p-3 border rounded-lg"
+                                                value={editingManager.phone}
+                                                onChange={e => setEditingManager({...editingManager, phone: e.target.value})}
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-bold text-slate-500 mb-2">Assign Communities</label>
+                                            <div className="h-48 overflow-y-auto border rounded-lg p-3 space-y-2 bg-slate-50">
+                                                {communities.map(c => (
+                                                    <label key={c.id} className="flex items-center gap-2 cursor-pointer hover:bg-slate-100 p-1 rounded">
+                                                        <input
+                                                            type="checkbox"
+                                                            name="communities"
+                                                            value={c.id}
+                                                            defaultChecked={editingManager.communities.some(mc => mc.id === c.id)}
+                                                            className="w-4 h-4 text-brand rounded"
+                                                        />
+                                                        <span className="text-sm text-slate-700">{c.name}</span>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div className="flex gap-4 pt-4">
+                                            <button type="button" onClick={() => setIsManagerModalOpen(false)} className="flex-1 py-3 text-slate-500 font-bold hover:bg-slate-50 rounded-lg">Cancel</button>
+                                            <button type="submit" className="flex-1 py-3 bg-brand text-white font-bold rounded-lg hover:bg-brand-dark">Save Changes</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* TAB 4: KNOWLEDGE */}
                 {activeTab === 'knowledge' && (
                     <div className="space-y-6">
                         <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
@@ -390,15 +506,9 @@ export default function AdminDashboard() {
                         <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
                             <div className="p-6 border-b border-slate-100 flex justify-between items-center">
                                 <h2 className="text-lg font-bold text-slate-800">
-                                    {selectedCommId
-                                        ? `Active Files for ${communities.find(c => c.id.toString() === selectedCommId)?.name}`
-                                        : "All Active Files"}
+                                    {selectedCommId ? `Active Files for ${communities.find(c => c.id.toString() === selectedCommId)?.name}` : "All Active Files"}
                                 </h2>
-                                <span className="text-xs text-slate-400">
-                                    {selectedCommId
-                                        ? `${filteredDocuments.length} document(s)`
-                                        : "Select a community to filter"}
-                                </span>
+                                <span className="text-xs text-slate-400">{selectedCommId ? `${filteredDocuments.length} document(s)` : "Select a community to filter"}</span>
                             </div>
 
                             {selectedCommId ? (
@@ -412,29 +522,14 @@ export default function AdminDashboard() {
                                     </thead>
                                     <tbody className="divide-y divide-slate-50">
                                     {filteredDocuments.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={3} className="px-6 py-8 text-center text-slate-400 italic">No documents found for this community.</td>
-                                        </tr>
+                                        <tr><td colSpan={3} className="px-6 py-8 text-center text-slate-400 italic">No documents found for this community.</td></tr>
                                     ) : (
                                         filteredDocuments.map((doc, idx) => (
                                             <tr key={doc.id + idx} className="hover:bg-slate-50">
-                                                <td className="px-6 py-4 font-medium text-slate-800 flex items-center gap-2">
-                                                    <FileText className="w-4 h-4 text-brand-accent" />
-                                                    {doc.filename}
-                                                </td>
-                                                <td className="px-6 py-4 text-sm text-slate-600">
-                                                        <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-xs font-bold">
-                                                            {doc.chunk_count}
-                                                        </span>
-                                                </td>
+                                                <td className="px-6 py-4 font-medium text-slate-800 flex items-center gap-2"><FileText className="w-4 h-4 text-brand-accent" />{doc.filename}</td>
+                                                <td className="px-6 py-4 text-sm text-slate-600"><span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-xs font-bold">{doc.chunk_count}</span></td>
                                                 <td className="px-6 py-4 text-right">
-                                                    <button
-                                                        onClick={() => handleDeleteDocument(doc.filename, doc.community_id)}
-                                                        className="text-slate-300 hover:text-red-500 p-2 transition-colors"
-                                                        title="Delete File"
-                                                    >
-                                                        <Trash2 className="w-5 h-5" />
-                                                    </button>
+                                                    <button onClick={() => handleDeleteDocument(doc.filename, doc.community_id)} className="text-slate-300 hover:text-red-500 p-2 transition-colors"><Trash2 className="w-5 h-5" /></button>
                                                 </td>
                                             </tr>
                                         ))
@@ -452,10 +547,10 @@ export default function AdminDashboard() {
                     </div>
                 )}
 
-                {/* TAB 4: ANALYTICS (UPDATED) */}
+                {/* TAB 5: ANALYTICS */}
                 {activeTab === 'analytics' && (
                     <div className="space-y-8 animate-in fade-in duration-500">
-                        {/* 1. Header & Controls */}
+                        {/* Header & Controls */}
                         <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 flex flex-col md:flex-row justify-between items-center gap-6">
                             <div className="w-full md:w-1/3">
                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Filter Stats by Community</label>
@@ -473,34 +568,20 @@ export default function AdminDashboard() {
                                     <Filter className="w-4 h-4 text-slate-400 absolute right-3 top-3.5 pointer-events-none" />
                                 </div>
                             </div>
-
                             <div className="flex gap-2">
-                                <button
-                                    onClick={handleExportCSV}
-                                    className="bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-brand px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-                                >
-                                    <FileText className="w-4 h-4" />
-                                    Export CSV
+                                <button onClick={handleExportCSV} className="bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-brand px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+                                    <FileText className="w-4 h-4" /> Export CSV
                                 </button>
-
-                                <button
-                                    onClick={handleClearAnalytics}
-                                    className="text-red-400 hover:text-red-600 hover:bg-red-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                    {analyticsCommId ? "Clear Community" : "Clear History"}
+                                <button onClick={handleClearAnalytics} className="text-red-400 hover:text-red-600 hover:bg-red-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+                                    <Trash2 className="w-4 h-4" /> {analyticsCommId ? "Clear Community" : "Clear History"}
                                 </button>
                             </div>
                         </div>
 
                         {!analytics ? (
-                            <div className="text-center py-20 bg-white rounded-xl border border-slate-100 shadow-sm">
-                                <Loader className="w-8 h-8 text-brand animate-spin mx-auto mb-4" />
-                                <p className="text-slate-500">Crunching the numbers...</p>
-                            </div>
+                            <div className="text-center py-20 bg-white rounded-xl border border-slate-100 shadow-sm"><Loader className="w-8 h-8 text-brand animate-spin mx-auto mb-4" /><p className="text-slate-500">Crunching the numbers...</p></div>
                         ) : (
                             <>
-                                {/* Overview Cards */}
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                     <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
                                         <div className="flex items-center gap-3 mb-2">
@@ -514,112 +595,42 @@ export default function AdminDashboard() {
                                             <div className="p-2 bg-orange-50 text-orange-600 rounded-lg"><AlertCircle className="w-5 h-5"/></div>
                                             <h3 className="text-slate-500 font-medium text-sm uppercase tracking-wide">Top Issue</h3>
                                         </div>
-                                        <p className="text-2xl font-bold text-slate-800 truncate">
-                                            {analytics.topics[0]?.topic || "N/A"}
-                                        </p>
-                                        <p className="text-xs text-slate-400 mt-1">Most frequent topic detected</p>
+                                        <p className="text-2xl font-bold text-slate-800 truncate">{analytics.topics[0]?.topic || "N/A"}</p>
                                     </div>
                                     <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
                                         <div className="flex items-center gap-3 mb-2">
                                             <div className="p-2 bg-green-50 text-green-600 rounded-lg"><TrendingUp className="w-5 h-5"/></div>
                                             <h3 className="text-slate-500 font-medium text-sm uppercase tracking-wide">Top Category</h3>
                                         </div>
-                                        <p className="text-2xl font-bold text-slate-800 truncate">
-                                            {analytics.categories[0]?.category || "N/A"}
-                                        </p>
+                                        <p className="text-2xl font-bold text-slate-800 truncate">{analytics.categories[0]?.category || "N/A"}</p>
                                     </div>
                                 </div>
 
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                                    {/* Category Breakdown */}
                                     <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-100">
                                         <h3 className="text-lg font-bold text-slate-800 mb-6">Inquiry Categories</h3>
                                         {analytics.categories.length === 0 ? <p className="text-slate-400 text-sm">No data yet.</p> : (
-                                            <SimpleBarChart
-                                                total={analytics.total}
-                                                data={analytics.categories.map(c => ({
-                                                    label: c.category,
-                                                    value: parseInt(c.count as any),
-                                                    color: c.category === 'Complaint' ? 'bg-red-500' : c.category === 'Maintenance' ? 'bg-orange-500' : 'bg-brand'
-                                                }))}
-                                            />
+                                            <SimpleBarChart total={analytics.total} data={analytics.categories.map(c => ({ label: c.category, value: parseInt(c.count as any), color: c.category === 'Complaint' ? 'bg-red-500' : c.category === 'Maintenance' ? 'bg-orange-500' : 'bg-brand' }))} />
                                         )}
                                     </div>
-
-                                    {/* Top Specific Topics */}
                                     <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-100">
                                         <h3 className="text-lg font-bold text-slate-800 mb-6">Top Specific Topics</h3>
                                         {analytics.topics.length === 0 ? <p className="text-slate-400 text-sm">No data yet.</p> : (
                                             <div className="space-y-4">
                                                 {analytics.topics.map((t, i) => (
                                                     <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                                                        <div className="flex items-center gap-3">
-                                                            <span className="font-mono text-slate-400 text-sm w-4">#{i+1}</span>
-                                                            <span className="font-bold text-slate-700">{t.topic}</span>
-                                                        </div>
-                                                        <div className="flex items-center gap-2">
-                                                            <span className={`text-[10px] px-2 py-0.5 rounded-full uppercase font-bold tracking-wider ${
-                                                                t.category === 'Complaint' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'
-                                                            }`}>
-                                                                {t.category}
-                                                            </span>
-                                                            <span className="font-bold text-slate-900">{t.count}</span>
-                                                        </div>
+                                                        <div className="flex items-center gap-3"><span className="font-mono text-slate-400 text-sm w-4">#{i+1}</span><span className="font-bold text-slate-700">{t.topic}</span></div>
+                                                        <div className="flex items-center gap-2"><span className={`text-[10px] px-2 py-0.5 rounded-full uppercase font-bold tracking-wider ${t.category === 'Complaint' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>{t.category}</span><span className="font-bold text-slate-900">{t.count}</span></div>
                                                     </div>
                                                 ))}
                                             </div>
                                         )}
                                     </div>
                                 </div>
-
-                                {/* Recent Live Feed */}
-                                <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-                                    <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-                                        <h3 className="text-lg font-bold text-slate-800">Recent Live Activity</h3>
-                                        <button onClick={fetchAnalytics} className="text-slate-400 hover:text-brand"><RefreshCw className="w-4 h-4"/></button>
-                                    </div>
-                                    <div className="max-h-[400px] overflow-y-auto">
-                                        <table className="w-full text-left">
-                                            <thead className="bg-slate-50 sticky top-0">
-                                            <tr>
-                                                <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Time</th>
-                                                <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Community</th>
-                                                <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Topic</th>
-                                                <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Category</th>
-                                            </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-100">
-                                            {analytics.feed.length === 0 ? (
-                                                <tr><td colSpan={4} className="p-8 text-center text-slate-400">No activity recorded yet.</td></tr>
-                                            ) : (
-                                                analytics.feed.map((item) => (
-                                                    <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-                                                        <td className="px-6 py-3 text-sm text-slate-400">
-                                                            {new Date(item.created_at).toLocaleDateString()} <span className="text-xs opacity-70">{new Date(item.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                                                        </td>
-                                                        <td className="px-6 py-3 text-sm font-medium text-slate-700">{item.community_name}</td>
-                                                        <td className="px-6 py-3 text-sm text-slate-600">{item.topic}</td>
-                                                        <td className="px-6 py-3">
-                                                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                                                                    item.category === 'Complaint' ? 'bg-red-50 text-red-700 ring-1 ring-red-600/10' :
-                                                                        item.category === 'Maintenance' ? 'bg-orange-50 text-orange-700 ring-1 ring-orange-600/10' :
-                                                                            'bg-blue-50 text-blue-700 ring-1 ring-blue-700/10'
-                                                                }`}>
-                                                                    {item.category}
-                                                                </span>
-                                                        </td>
-                                                    </tr>
-                                                ))
-                                            )}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
                             </>
                         )}
                     </div>
                 )}
-
             </div>
         </div>
     );
