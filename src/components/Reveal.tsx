@@ -7,11 +7,12 @@ interface Props {
     children: React.ReactNode;
     width?: "fit-content" | "100%";
     delay?: number;
+    className?: string; // <--- Added to allow passing "h-full"
 }
 
-export default function Reveal({ children, width = "fit-content", delay = 0 }: Props) {
+export default function Reveal({ children, width = "fit-content", delay = 0, className = "" }: Props) {
     const ref = useRef(null);
-    const isInView = useInView(ref, { once: true, margin: "-75px" }); // Triggers when element is 75px into view
+    const isInView = useInView(ref, { once: true, margin: "-75px" });
     const mainControls = useAnimation();
 
     useEffect(() => {
@@ -21,7 +22,7 @@ export default function Reveal({ children, width = "fit-content", delay = 0 }: P
     }, [isInView, mainControls]);
 
     return (
-        <div ref={ref} style={{ position: "relative", width, overflow: "hidden" }}>
+        <div ref={ref} className={className} style={{ position: "relative", width, overflow: "hidden" }}>
             <motion.div
                 variants={{
                     hidden: { opacity: 0, y: 75 },
@@ -30,6 +31,7 @@ export default function Reveal({ children, width = "fit-content", delay = 0 }: P
                 initial="hidden"
                 animate={mainControls}
                 transition={{ duration: 0.5, delay: delay, ease: "easeOut" }}
+                className="h-full" // <--- Added so it fills the wrapper
             >
                 {children}
             </motion.div>

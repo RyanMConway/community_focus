@@ -11,11 +11,9 @@ export default function ResourcesPage() {
         if (chatButton) chatButton.click();
     };
 
-    // Master Links
     const PORTAL_URL = "https://cfnc.cincwebaxis.com";
     const WORKORDER_URL = "https://cfnc.cincwebaxis.com/workorders";
 
-    // Real Book Data
     const books = [
         {
             title: "Your Home is Your Castle",
@@ -44,7 +42,6 @@ export default function ResourcesPage() {
                         Everything you need to manage your home and community life, all in one place.
                     </p>
                 </div>
-                {/* Background Shapes */}
                 <div className="absolute top-0 left-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2"></div>
                 <div className="absolute bottom-0 right-0 w-96 h-96 bg-brand/20 rounded-full blur-3xl translate-x-1/2 translate-y-1/2"></div>
             </div>
@@ -53,8 +50,8 @@ export default function ResourcesPage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
                     {/* Card 1: Payments */}
-                    <Reveal delay={0.1}>
-                        {/* Added h-full to make it stretch */}
+                    {/* Added width="100%" and className="h-full" to ensure grid stretching */}
+                    <Reveal delay={0.1} width="100%" className="h-full">
                         <a href={PORTAL_URL} target="_blank" rel="noreferrer" className="block group h-full">
                             <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-xl transition-all hover:-translate-y-1 h-full">
                                 <div className="w-14 h-14 bg-green-50 rounded-xl flex items-center justify-center mb-6 group-hover:bg-green-100 transition-colors">
@@ -70,8 +67,7 @@ export default function ResourcesPage() {
                     </Reveal>
 
                     {/* Card 2: Maintenance */}
-                    <Reveal delay={0.2}>
-                        {/* Added h-full to make it stretch */}
+                    <Reveal delay={0.2} width="100%" className="h-full">
                         <a href={WORKORDER_URL} target="_blank" rel="noreferrer" className="block group h-full">
                             <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-xl transition-all hover:-translate-y-1 h-full">
                                 <div className="w-14 h-14 bg-blue-50 rounded-xl flex items-center justify-center mb-6 group-hover:bg-blue-100 transition-colors">
@@ -87,7 +83,7 @@ export default function ResourcesPage() {
                     </Reveal>
 
                     {/* Card 3: Legal / Chat Bot Link */}
-                    <Reveal delay={0.3}>
+                    <Reveal delay={0.3} width="100%" className="h-full">
                         <button onClick={openChatBot} className="block group w-full text-left h-full">
                             <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-xl transition-all hover:-translate-y-1 h-full relative overflow-hidden">
                                 <div className="absolute top-0 right-0 bg-brand text-white text-xs font-bold px-3 py-1 rounded-bl-lg">NEW</div>
@@ -95,7 +91,8 @@ export default function ResourcesPage() {
                                     <Scale className="w-7 h-7 text-purple-600" />
                                 </div>
                                 <h3 className="text-xl font-bold text-slate-800 mb-2">NC Statutes & Rules</h3>
-                                <p className="text-slate-500 mb-4">Questions about community rules? Our AI Assistant can help you navigate the NC General Statutes.</p>
+                                {/* Shortened text to match visual height better */}
+                                <p className="text-slate-500 mb-4">Our AI Assistant can help you instantly navigate NC General Statutes and community rules.</p>
                                 <span className="text-brand font-bold text-sm flex items-center gap-2">
                                     Ask the AI Assistant <Users className="w-4 h-4" />
                                 </span>
@@ -106,8 +103,6 @@ export default function ResourcesPage() {
 
                 {/* Vendor & Reading List Section */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mt-20">
-
-                    {/* Trusted Vendors */}
                     <div>
                         <h2 className="text-2xl font-serif font-bold text-slate-800 mb-6 flex items-center gap-3">
                             <Users className="w-6 h-6 text-brand" /> Trusted Vendor Categories
@@ -130,18 +125,13 @@ export default function ResourcesPage() {
                         </div>
                     </div>
 
-                    {/* Recommended Reading (Static List) */}
                     <div>
                         <h2 className="text-2xl font-serif font-bold text-slate-800 mb-6 flex items-center gap-3">
                             <BookOpen className="w-6 h-6 text-brand" /> Recommended Reading
                         </h2>
                         <div className="space-y-4">
                             {books.map((book, i) => (
-                                <div
-                                    key={i}
-                                    className="bg-white p-5 rounded-xl shadow-sm border border-slate-100 flex gap-4 items-start"
-                                >
-                                    {/* Book Icon */}
+                                <div key={i} className="bg-white p-5 rounded-xl shadow-sm border border-slate-100 flex gap-4 items-start">
                                     <div className="w-12 h-16 bg-slate-100 rounded-md flex items-center justify-center flex-shrink-0 text-slate-300">
                                         <BookOpen className="w-6 h-6" />
                                     </div>
