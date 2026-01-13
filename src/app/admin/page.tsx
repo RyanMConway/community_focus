@@ -71,8 +71,8 @@ export default function AdminDashboard() {
     const [newComm, setNewComm] = useState({ name: '', city: 'Durham, NC', portal_url: '', description: '' });
 
     // Filter State
-    const [selectedCommId, setSelectedCommId] = useState<string>(""); // For Knowledge Base
-    const [analyticsCommId, setAnalyticsCommId] = useState<string>(""); // For Analytics
+    const [selectedCommId, setSelectedCommId] = useState<string>("");
+    const [analyticsCommId, setAnalyticsCommId] = useState<string>("");
 
     // --- ACCESS CONTROL CHECK ---
     useEffect(() => {
@@ -89,9 +89,9 @@ export default function AdminDashboard() {
     // Load Data based on active tab
     useEffect(() => {
         if (activeTab === 'analytics') {
-            fetchAnalytics(); // Fetch immediately when tab opens
+            fetchAnalytics();
         }
-    }, [activeTab, analyticsCommId]); // Re-fetch when filter changes
+    }, [activeTab, analyticsCommId]);
 
     const loadData = async () => {
         try {
@@ -112,7 +112,6 @@ export default function AdminDashboard() {
 
     const fetchAnalytics = async () => {
         try {
-            // Append communityId to query if selected
             const query = analyticsCommId ? `?range=30d&communityId=${analyticsCommId}` : '?range=30d';
             const res = await fetch(`/api/admin/analytics${query}`);
             const data = await res.json();
@@ -122,7 +121,8 @@ export default function AdminDashboard() {
         }
     };
 
-    // --- DATA ACTIONS ---
+    // --- ACTIONS ---
+
     const handleAddCommunity = async (e: React.FormEvent) => {
         e.preventDefault();
         const res = await fetch('/api/admin/communities', {
@@ -144,7 +144,6 @@ export default function AdminDashboard() {
         setCommunities(prev => prev.filter(c => c.id !== id));
     };
 
-    // --- RESTORED FUNCTION ---
     const handleMarkRead = async (id: number) => {
         setMessages(prev => prev.map(m => m.id === id ? { ...m, status: 'read' } : m));
         await fetch(`/api/admin/messages/${id}`, {
@@ -162,11 +161,9 @@ export default function AdminDashboard() {
 
     const handleDeleteDocument = async (filename: string, communityId: number) => {
         if (!confirm(`Permanently delete "${filename}"? This will remove it from the website, storage, and AI.`)) return;
-
         await fetch(`/api/admin/documents?id=${encodeURIComponent(filename)}&communityId=${communityId}`, {
             method: 'DELETE'
         });
-
         loadData();
     };
 
@@ -186,7 +183,35 @@ export default function AdminDashboard() {
         }
     };
 
-    // --- HELPER: Simple Bar Chart Component ---
+    // --- NEW: Export to CSV ---
+    const handleExportCSV = () => {
+        if (!analytics) return;
+
+        // 1. Create the CSV Content
+        const headers = ["Category", "Count", "Percentage"];
+        const rows = analytics.categories.map(c => [
+            c.category,
+            c.count,
+            `${Math.round((c.count / analytics.total) * 100)}%`
+        ]);
+
+        const csvContent = [
+            headers.join(","),
+            ...rows.map(row => row.join(","))
+        ].join("\n");
+
+        // 2. Create a Blob and Download
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `community_focus_report_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    // --- HELPER: Simple Bar Chart ---
     const SimpleBarChart = ({ data, total }: { data: { label: string, value: number, color?: string }[], total: number }) => (
         <div className="space-y-3">
             {data.map((item, i) => (
@@ -427,7 +452,7 @@ export default function AdminDashboard() {
                     </div>
                 )}
 
-                {/* TAB 4: ANALYTICS */}
+                {/* TAB 4: ANALYTICS (UPDATED) */}
                 {activeTab === 'analytics' && (
                     <div className="space-y-8 animate-in fade-in duration-500">
                         {/* 1. Header & Controls */}
@@ -449,13 +474,23 @@ export default function AdminDashboard() {
                                 </div>
                             </div>
 
-                            <button
-                                onClick={handleClearAnalytics}
-                                className="text-red-400 hover:text-red-600 hover:bg-red-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-                            >
-                                <Trash2 className="w-4 h-4" />
-                                {analyticsCommId ? "Clear Community Data" : "Clear All History"}
-                            </button>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={handleExportCSV}
+                                    className="bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-brand px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                                >
+                                    <FileText className="w-4 h-4" />
+                                    Export CSV
+                                </button>
+
+                                <button
+                                    onClick={handleClearAnalytics}
+                                    className="text-red-400 hover:text-red-600 hover:bg-red-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                    {analyticsCommId ? "Clear Community" : "Clear History"}
+                                </button>
+                            </div>
                         </div>
 
                         {!analytics ? (

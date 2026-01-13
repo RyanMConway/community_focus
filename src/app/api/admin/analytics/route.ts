@@ -1,11 +1,17 @@
 import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
+import { checkAdminAuth } from '@/lib/checkAuth';
 
 export async function GET(request: Request) {
+    // --- SECURITY CHECK (NEW) ---
+    const auth = await checkAdminAuth();
+    if (!auth.authorized) return auth.response;
+    // ----------------------------
+
     try {
         const { searchParams } = new URL(request.url);
         const range = searchParams.get('range') || '30d';
-        const communityId = searchParams.get('communityId'); // <--- NEW: Get Community Filter
+        const communityId = searchParams.get('communityId');
 
         // Build the WHERE clause dynamically
         let conditions = ["1=1"]; // Default true
@@ -49,7 +55,7 @@ export async function GET(request: Request) {
                     LIMIT 10
             `, params);
 
-            // 4. Community Activity (Only useful if viewing ALL, but harmless if filtered)
+            // 4. Community Activity
             const communityRes = await client.query(`
                 SELECT c.name, COUNT(ca.id) as count
                 FROM chat_analytics ca
@@ -86,8 +92,12 @@ export async function GET(request: Request) {
     }
 }
 
-// --- NEW: DELETE Method to Clear Data ---
 export async function DELETE(request: Request) {
+    // --- SECURITY CHECK (NEW) ---
+    const auth = await checkAdminAuth();
+    if (!auth.authorized) return auth.response;
+    // ----------------------------
+
     try {
         const { searchParams } = new URL(request.url);
         const communityId = searchParams.get('communityId');
@@ -100,7 +110,7 @@ export async function DELETE(request: Request) {
                 return NextResponse.json({ message: `Cleared data for community ${communityId}` });
             } else {
                 // Clear ALL data
-                await client.query('DELETE FROM chat_analytics'); // Truncate might be faster but DELETE is safer for now
+                await client.query('DELETE FROM chat_analytics');
                 return NextResponse.json({ message: "Cleared all analytics data" });
             }
         } finally {
