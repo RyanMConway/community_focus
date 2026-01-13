@@ -54,7 +54,8 @@ export default function ResourcesPage() {
 
                     {/* Card 1: Payments */}
                     <Reveal delay={0.1}>
-                        <a href={PORTAL_URL} target="_blank" rel="noreferrer" className="block group">
+                        {/* Added h-full to make it stretch */}
+                        <a href={PORTAL_URL} target="_blank" rel="noreferrer" className="block group h-full">
                             <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-xl transition-all hover:-translate-y-1 h-full">
                                 <div className="w-14 h-14 bg-green-50 rounded-xl flex items-center justify-center mb-6 group-hover:bg-green-100 transition-colors">
                                     <DollarSign className="w-7 h-7 text-green-600" />
@@ -70,7 +71,8 @@ export default function ResourcesPage() {
 
                     {/* Card 2: Maintenance */}
                     <Reveal delay={0.2}>
-                        <a href={WORKORDER_URL} target="_blank" rel="noreferrer" className="block group">
+                        {/* Added h-full to make it stretch */}
+                        <a href={WORKORDER_URL} target="_blank" rel="noreferrer" className="block group h-full">
                             <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-xl transition-all hover:-translate-y-1 h-full">
                                 <div className="w-14 h-14 bg-blue-50 rounded-xl flex items-center justify-center mb-6 group-hover:bg-blue-100 transition-colors">
                                     <Wrench className="w-7 h-7 text-blue-600" />
