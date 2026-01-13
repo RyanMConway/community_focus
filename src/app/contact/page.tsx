@@ -8,9 +8,10 @@ export default function ContactPage() {
     const [activeTab, setActiveTab] = useState<'general' | 'bid'>('general');
 
     return (
-        <main className="min-h-screen bg-slate-50 pt-24 pb-20">
-            {/* Header */}
-            <div className="bg-brand-dark text-white py-16 px-6 text-center">
+        <main className="min-h-screen bg-slate-50 pb-20"> {/* REMOVED pt-24 */}
+
+            {/* HEADER: Added pt-32 */}
+            <div className="bg-brand-dark text-white pt-32 pb-16 px-6 text-center">
                 <h1 className="text-4xl font-serif font-bold mb-4">Contact Us</h1>
                 <p className="text-brand-accent text-lg max-w-xl mx-auto">
                     We are here to help. Reach out for support or request a proposal for your community.

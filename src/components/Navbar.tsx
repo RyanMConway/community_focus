@@ -5,10 +5,9 @@ import Link from 'next/link';
 import { Menu, X } from 'lucide-react';
 import ShinyButton from './ShinyButton';
 
-// Explicitly define menu items to avoid routing errors
 const NAV_ITEMS = [
     { label: 'Home', href: '/' },
-    { label: 'About Us', href: '/about' }, // Fixed: Points to /about instead of /about-us
+    { label: 'About Us', href: '/about' },
     { label: 'Communities', href: '/communities' },
     { label: 'Services', href: '/services' },
     { label: 'Resources', href: '/resources' },
@@ -18,7 +17,6 @@ export default function Navbar() {
     const [isOpen, setIsOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
 
-    // Add shadow/border only when scrolled
     useEffect(() => {
         const handleScroll = () => setScrolled(window.scrollY > 20);
         window.addEventListener('scroll', handleScroll);
@@ -42,7 +40,6 @@ export default function Navbar() {
                     <div className="bg-brand text-white p-2 rounded-xl font-bold text-xl shadow-lg shadow-brand/20 group-hover:scale-105 transition-transform">
                         CF
                     </div>
-                    {/* Dark text on scroll, Light text on transparent hero */}
                     <span className={`text-xl font-serif font-bold tracking-tight transition-colors ${scrolled ? 'text-slate-800' : 'text-slate-800 md:text-white'}`}>
                         Community Focus
                     </span>
@@ -69,7 +66,7 @@ export default function Navbar() {
 
                 {/* Mobile Menu Button */}
                 <button
-                    className={`md:hidden focus:outline-none ${scrolled ? 'text-slate-800' : 'text-white'}`}
+                    className={`md:hidden focus:outline-none ${scrolled ? 'text-slate-800' : 'text-slate-800 md:text-white'}`}
                     onClick={() => setIsOpen(!isOpen)}
                 >
                     {isOpen ? <X className="w-8 h-8" /> : <Menu className="w-8 h-8" />}
@@ -78,7 +75,7 @@ export default function Navbar() {
 
             {/* Mobile Menu Dropdown */}
             {isOpen && (
-                <div className="md:hidden bg-white border-t border-gray-100 absolute w-full shadow-lg h-screen top-20 left-0 z-40">
+                <div className="md:hidden bg-white border-t border-gray-100 absolute w-full shadow-lg h-screen top-20 left-0">
                     <div className="flex flex-col p-6 space-y-6">
                         {NAV_ITEMS.map((item) => (
                             <Link

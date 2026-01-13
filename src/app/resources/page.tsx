@@ -5,7 +5,6 @@ import Reveal from '@/components/Reveal';
 
 export default function ResourcesPage() {
 
-    // Helper to open the chat bot
     const openChatBot = () => {
         const chatButton = document.getElementById('chat-trigger');
         if (chatButton) chatButton.click();
@@ -33,9 +32,10 @@ export default function ResourcesPage() {
     ];
 
     return (
-        <main className="min-h-screen pt-24 pb-20 bg-slate-50">
-            {/* Header */}
-            <div className="bg-brand-dark text-white py-16 px-6 relative overflow-hidden">
+        <main className="min-h-screen pb-20 bg-slate-50"> {/* REMOVED pt-24 */}
+
+            {/* HEADER: Added pt-32 */}
+            <div className="bg-brand-dark text-white pt-32 pb-16 px-6 relative overflow-hidden">
                 <div className="max-w-7xl mx-auto relative z-10 text-center">
                     <h1 className="text-4xl font-serif font-bold mb-4">Owner Resources</h1>
                     <p className="text-brand-accent text-lg max-w-2xl mx-auto">
@@ -49,8 +49,6 @@ export default function ResourcesPage() {
             <div className="max-w-7xl mx-auto px-6 -mt-8 relative z-20">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
-                    {/* Card 1: Payments */}
-                    {/* Added width="100%" and className="h-full" to ensure grid stretching */}
                     <Reveal delay={0.1} width="100%" className="h-full">
                         <a href={PORTAL_URL} target="_blank" rel="noreferrer" className="block group h-full">
                             <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-xl transition-all hover:-translate-y-1 h-full">
@@ -66,7 +64,6 @@ export default function ResourcesPage() {
                         </a>
                     </Reveal>
 
-                    {/* Card 2: Maintenance */}
                     <Reveal delay={0.2} width="100%" className="h-full">
                         <a href={WORKORDER_URL} target="_blank" rel="noreferrer" className="block group h-full">
                             <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-xl transition-all hover:-translate-y-1 h-full">
@@ -82,7 +79,6 @@ export default function ResourcesPage() {
                         </a>
                     </Reveal>
 
-                    {/* Card 3: Legal / Chat Bot Link */}
                     <Reveal delay={0.3} width="100%" className="h-full">
                         <button onClick={openChatBot} className="block group w-full text-left h-full">
                             <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-xl transition-all hover:-translate-y-1 h-full relative overflow-hidden">
@@ -91,7 +87,6 @@ export default function ResourcesPage() {
                                     <Scale className="w-7 h-7 text-purple-600" />
                                 </div>
                                 <h3 className="text-xl font-bold text-slate-800 mb-2">NC Statutes & Rules</h3>
-                                {/* Shortened text to match visual height better */}
                                 <p className="text-slate-500 mb-4">Our AI Assistant can help you instantly navigate NC General Statutes and community rules.</p>
                                 <span className="text-brand font-bold text-sm flex items-center gap-2">
                                     Ask the AI Assistant <Users className="w-4 h-4" />
@@ -101,7 +96,6 @@ export default function ResourcesPage() {
                     </Reveal>
                 </div>
 
-                {/* Vendor & Reading List Section */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mt-20">
                     <div>
                         <h2 className="text-2xl font-serif font-bold text-slate-800 mb-6 flex items-center gap-3">
