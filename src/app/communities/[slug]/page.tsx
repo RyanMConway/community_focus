@@ -2,7 +2,8 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ExternalLink, ArrowLeft, MapPin, FileText, ShieldAlert, Phone } from 'lucide-react';
 import pool from '@/lib/db';
-import AnimatedDocList from '@/components/AnimatedDocList'; // <--- Import New Component
+import AnimatedDocList from '@/components/AnimatedDocList';
+import AlertBanner from '@/components/AlertBanner'; // <--- Import
 
 async function getData(slug: string) {
     const client = await pool.connect();
@@ -34,9 +35,12 @@ export default async function CommunityPage({ params }: { params: Promise<{ slug
     const otherDocs = documents.filter((d: any) => d.category !== 'Governing' && d.category !== 'Forms');
 
     return (
-        <main className="min-h-screen bg-slate-50 pb-20"> {/* REMOVED pt-20, fixed via layout */}
+        <main className="min-h-screen bg-slate-50 pb-20">
 
-            {/* HERO: Enhanced with Gradient and Pattern */}
+            {/* --- NEW ALERT BANNER --- */}
+            <AlertBanner message={community.alert_message} type={community.alert_type} />
+
+            {/* HERO */}
             <div className="relative pt-32 pb-20 bg-brand-dark overflow-hidden">
                 <div className="absolute inset-0 opacity-20 bg-[url('/grid.svg')]"></div>
                 <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-brand/20 rounded-full blur-[120px] pointer-events-none"></div>
@@ -130,7 +134,6 @@ export default async function CommunityPage({ params }: { params: Promise<{ slug
                                         <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500"><Phone className="w-4 h-4" /></div>
                                         (919) 564-9134
                                     </a>
-                                    {/* Additional contacts can go here */}
                                 </div>
                             </div>
                         </div>

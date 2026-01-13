@@ -5,7 +5,8 @@ import { useUser } from '@clerk/nextjs';
 import {
     Mail, Building2, Trash2, CheckCircle, Plus, BookOpen,
     Upload, FileText, Loader, Filter, ShieldAlert, BarChart3,
-    TrendingUp, MessageSquare, AlertCircle, RefreshCw, Users, Briefcase
+    TrendingUp, MessageSquare, AlertCircle, RefreshCw, Users, Briefcase,
+    BrainCircuit, Search, Edit2
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -35,6 +36,9 @@ interface Community {
     city: string;
     portal_url: string;
     slug: string;
+    // New Fields
+    alert_message?: string;
+    alert_type?: 'info' | 'warning' | 'emergency';
 }
 
 interface Manager {
@@ -65,7 +69,7 @@ interface AnalyticsData {
 export default function AdminDashboard() {
     const { user, isLoaded } = useUser();
     const router = useRouter();
-    const [activeTab, setActiveTab] = useState<'inbox' | 'communities' | 'managers' | 'knowledge' | 'analytics'>('inbox');
+    const [activeTab, setActiveTab] = useState<'inbox' | 'communities' | 'managers' | 'knowledge' | 'analytics' | 'brain'>('inbox');
 
     // Data State
     const [messages, setMessages] = useState<Message[]>([]);
@@ -75,15 +79,22 @@ export default function AdminDashboard() {
     const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
     const [loading, setLoading] = useState(true);
 
-    // Form State
-    const [isAdding, setIsAdding] = useState(false);
-    const [newComm, setNewComm] = useState({ name: '', city: 'Durham, NC', portal_url: '', description: '' });
+    // -- STATE FOR COMMUNITIES --
+    const [isCommModalOpen, setIsCommModalOpen] = useState(false);
+    const [editingComm, setEditingComm] = useState<Community>({
+        id: 0, name: '', city: 'Durham, NC', portal_url: '', slug: '', alert_message: '', alert_type: 'info'
+    });
 
-    // Manager Editing State
-    const [editingManager, setEditingManager] = useState<Manager | null>(null);
+    // -- STATE FOR MANAGERS --
     const [isManagerModalOpen, setIsManagerModalOpen] = useState(false);
+    const [editingManager, setEditingManager] = useState<Manager | null>(null);
 
-    // Filter State
+    // -- STATE FOR BRAIN SEARCH --
+    const [brainQuery, setBrainQuery] = useState("");
+    const [brainResults, setBrainResults] = useState<any[]>([]);
+    const [isBrainSearching, setIsBrainSearching] = useState(false);
+
+    // -- STATE FOR FILTERS --
     const [selectedCommId, setSelectedCommId] = useState<string>("");
     const [analyticsCommId, setAnalyticsCommId] = useState<string>("");
 
@@ -139,24 +150,41 @@ export default function AdminDashboard() {
         }
     };
 
-    // --- ACTIONS ---
+    // --- ACTIONS: COMMUNITIES ---
+    const handleSaveCommunity = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const method = editingComm.id === 0 ? 'POST' : 'PUT';
 
+        const res = await fetch('/api/admin/communities', {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(editingComm)
+        });
+
+        if (res.ok) {
+            loadData();
+            setIsCommModalOpen(false);
+        }
+    };
+
+    const handleDeleteCommunity = async (id: number) => {
+        if (!confirm('Delete this community? This cannot be undone.')) return;
+        await fetch(`/api/admin/communities?id=${id}`, { method: 'DELETE' });
+        setCommunities(prev => prev.filter(c => c.id !== id));
+    };
+
+    // --- ACTIONS: MANAGERS ---
     const handleSaveManager = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!editingManager) return;
-
         const method = editingManager.id === 0 ? 'POST' : 'PUT';
 
-        // Get selected communities from form
         const form = e.target as HTMLFormElement;
         const selectedCommIds = Array.from(form.elements)
             .filter((el: any) => el.name === 'communities' && el.checked)
             .map((el: any) => parseInt(el.value));
 
-        const payload = {
-            ...editingManager,
-            community_ids: selectedCommIds
-        };
+        const payload = { ...editingManager, community_ids: selectedCommIds };
 
         const res = await fetch('/api/admin/managers', {
             method,
@@ -171,27 +199,24 @@ export default function AdminDashboard() {
         }
     };
 
-    const handleAddCommunity = async (e: React.FormEvent) => {
+    // --- ACTIONS: BRAIN SEARCH ---
+    const handleBrainSearch = async (e: React.FormEvent) => {
         e.preventDefault();
-        const res = await fetch('/api/admin/communities', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(newComm)
-        });
-
-        if (res.ok) {
-            loadData();
-            setIsAdding(false);
-            setNewComm({ name: '', city: 'Durham, NC', portal_url: '', description: '' });
+        setIsBrainSearching(true);
+        try {
+            const res = await fetch('/api/admin/brain', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query: brainQuery })
+            });
+            const data = await res.json();
+            setBrainResults(data.results || []);
+        } finally {
+            setIsBrainSearching(false);
         }
     };
 
-    const handleDeleteCommunity = async (id: number) => {
-        if (!confirm('Delete this community? This cannot be undone.')) return;
-        await fetch(`/api/admin/communities?id=${id}`, { method: 'DELETE' });
-        setCommunities(prev => prev.filter(c => c.id !== id));
-    };
-
+    // --- GENERIC ACTIONS ---
     const handleMarkRead = async (id: number) => {
         setMessages(prev => prev.map(m => m.id === id ? { ...m, status: 'read' } : m));
         await fetch(`/api/admin/messages/${id}`, {
@@ -268,20 +293,23 @@ export default function AdminDashboard() {
                         <h1 className="text-3xl font-serif font-bold mb-2">Admin Portal</h1>
                         <p className="text-brand-accent/80">Manage messages, properties, and AI knowledge.</p>
                     </div>
-                    <div className="flex gap-2 mt-6 md:mt-0 bg-white/10 p-1 rounded-lg backdrop-blur-sm">
-                        <button onClick={() => setActiveTab('inbox')} className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'inbox' ? 'bg-white text-brand-dark shadow-sm' : 'text-slate-300 hover:text-white'}`}>
+                    <div className="flex gap-2 mt-6 md:mt-0 bg-white/10 p-1 rounded-lg backdrop-blur-sm overflow-x-auto max-w-full">
+                        <button onClick={() => setActiveTab('inbox')} className={`px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2 ${activeTab === 'inbox' ? 'bg-white text-brand-dark shadow-sm' : 'text-slate-300 hover:text-white'}`}>
                             <Mail className="w-4 h-4" /> Inbox
                         </button>
-                        <button onClick={() => setActiveTab('communities')} className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'communities' ? 'bg-white text-brand-dark shadow-sm' : 'text-slate-300 hover:text-white'}`}>
+                        <button onClick={() => setActiveTab('communities')} className={`px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2 ${activeTab === 'communities' ? 'bg-white text-brand-dark shadow-sm' : 'text-slate-300 hover:text-white'}`}>
                             <Building2 className="w-4 h-4" /> Communities
                         </button>
-                        <button onClick={() => setActiveTab('managers')} className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'managers' ? 'bg-white text-brand-dark shadow-sm' : 'text-slate-300 hover:text-white'}`}>
+                        <button onClick={() => setActiveTab('managers')} className={`px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2 ${activeTab === 'managers' ? 'bg-white text-brand-dark shadow-sm' : 'text-slate-300 hover:text-white'}`}>
                             <Users className="w-4 h-4" /> Managers
                         </button>
-                        <button onClick={() => setActiveTab('knowledge')} className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'knowledge' ? 'bg-white text-brand-dark shadow-sm' : 'text-slate-300 hover:text-white'}`}>
+                        <button onClick={() => setActiveTab('brain')} className={`px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2 ${activeTab === 'brain' ? 'bg-white text-brand-dark shadow-sm' : 'text-slate-300 hover:text-white'}`}>
+                            <BrainCircuit className="w-4 h-4" /> Brain
+                        </button>
+                        <button onClick={() => setActiveTab('knowledge')} className={`px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2 ${activeTab === 'knowledge' ? 'bg-white text-brand-dark shadow-sm' : 'text-slate-300 hover:text-white'}`}>
                             <BookOpen className="w-4 h-4" /> Knowledge
                         </button>
-                        <button onClick={() => setActiveTab('analytics')} className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'analytics' ? 'bg-white text-brand-dark shadow-sm' : 'text-slate-300 hover:text-white'}`}>
+                        <button onClick={() => setActiveTab('analytics')} className={`px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2 ${activeTab === 'analytics' ? 'bg-white text-brand-dark shadow-sm' : 'text-slate-300 hover:text-white'}`}>
                             <BarChart3 className="w-4 h-4" /> Analytics
                         </button>
                     </div>
@@ -321,38 +349,87 @@ export default function AdminDashboard() {
                     </div>
                 )}
 
-                {/* TAB 2: COMMUNITIES */}
+                {/* TAB 2: COMMUNITIES (UPDATED WITH ALERTS & EDIT) */}
                 {activeTab === 'communities' && (
                     <div className="space-y-6">
                         <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
                             <div className="flex justify-between items-center mb-6">
                                 <h2 className="text-lg font-bold text-slate-800">Manage Communities</h2>
-                                <button onClick={() => setIsAdding(!isAdding)} className="bg-brand hover:bg-brand-dark text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 text-sm">
-                                    <Plus className="w-4 h-4" /> {isAdding ? 'Cancel' : 'Add New'}
+                                <button
+                                    onClick={() => {
+                                        setEditingComm({ id: 0, name: '', city: 'Durham, NC', portal_url: '', slug: '', alert_message: '', alert_type: 'info' });
+                                        setIsCommModalOpen(true);
+                                    }}
+                                    className="bg-brand hover:bg-brand-dark text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 text-sm"
+                                >
+                                    <Plus className="w-4 h-4" /> Add New
                                 </button>
                             </div>
-                            {isAdding && (
-                                <form onSubmit={handleAddCommunity} className="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-6">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                        <input required placeholder="Name" className="p-2 rounded border" value={newComm.name} onChange={e => setNewComm({...newComm, name: e.target.value})} />
-                                        <input placeholder="City" className="p-2 rounded border" value={newComm.city} onChange={e => setNewComm({...newComm, city: e.target.value})} />
-                                        <input required placeholder="Portal URL" className="p-2 rounded border md:col-span-2" value={newComm.portal_url} onChange={e => setNewComm({...newComm, portal_url: e.target.value})} />
-                                    </div>
-                                    <button className="bg-brand-dark text-white px-6 py-2 rounded-lg font-bold">Save</button>
-                                </form>
-                            )}
+
                             <div className="grid gap-4">
                                 {communities.map((c) => (
                                     <div key={c.id} className="flex justify-between p-4 border rounded bg-white items-center">
-                                        <div>
-                                            <div className="font-bold text-slate-800">{c.name}</div>
-                                            <div className="text-xs text-slate-500">{c.city}</div>
+                                        <div className="flex items-center gap-4">
+                                            <div>
+                                                <div className="font-bold text-slate-800 flex items-center gap-2">
+                                                    {c.name}
+                                                    {c.alert_message && <span className="bg-amber-100 text-amber-700 text-[10px] px-2 py-0.5 rounded-full uppercase font-bold tracking-wider">Alert Active</span>}
+                                                </div>
+                                                <div className="text-xs text-slate-500">{c.city}</div>
+                                            </div>
                                         </div>
-                                        <button onClick={() => handleDeleteCommunity(c.id)} className="text-red-300 hover:text-red-500"><Trash2 className="w-5 h-5" /></button>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => { setEditingComm(c); setIsCommModalOpen(true); }}
+                                                className="text-brand hover:bg-blue-50 p-2 rounded transition-colors"
+                                                title="Edit"
+                                            >
+                                                <Edit2 className="w-4 h-4" />
+                                            </button>
+                                            <button onClick={() => handleDeleteCommunity(c.id)} className="text-slate-300 hover:text-red-500 hover:bg-red-50 p-2 rounded transition-colors"><Trash2 className="w-4 h-4" /></button>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
                         </div>
+
+                        {/* COMMUNITY MODAL */}
+                        {isCommModalOpen && (
+                            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                                <div className="bg-white rounded-2xl w-full max-w-lg p-8 shadow-2xl">
+                                    <h3 className="text-xl font-bold mb-6">{editingComm.id === 0 ? 'Add Community' : 'Edit Community'}</h3>
+                                    <form onSubmit={handleSaveCommunity} className="space-y-4">
+                                        <input required placeholder="Name" className="w-full p-3 border rounded-lg" value={editingComm.name} onChange={e => setEditingComm({...editingComm, name: e.target.value})} />
+                                        <input placeholder="City" className="w-full p-3 border rounded-lg" value={editingComm.city} onChange={e => setEditingComm({...editingComm, city: e.target.value})} />
+                                        <input required placeholder="Portal URL" className="w-full p-3 border rounded-lg" value={editingComm.portal_url} onChange={e => setEditingComm({...editingComm, portal_url: e.target.value})} />
+
+                                        <div className="border-t pt-4 mt-2">
+                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Community Alert Banner</label>
+                                            <textarea
+                                                placeholder="Alert Message (e.g. 'Water shut off tomorrow'). Leave empty to disable."
+                                                className="w-full p-3 border rounded-lg h-24 mb-2"
+                                                value={editingComm.alert_message || ''}
+                                                onChange={e => setEditingComm({...editingComm, alert_message: e.target.value})}
+                                            />
+                                            <select
+                                                className="w-full p-3 border rounded-lg"
+                                                value={editingComm.alert_type || 'info'}
+                                                onChange={e => setEditingComm({...editingComm, alert_type: e.target.value as any})}
+                                            >
+                                                <option value="info">Info (Blue)</option>
+                                                <option value="warning">Warning (Orange)</option>
+                                                <option value="emergency">Emergency (Red)</option>
+                                            </select>
+                                        </div>
+
+                                        <div className="flex gap-4 pt-4">
+                                            <button type="button" onClick={() => setIsCommModalOpen(false)} className="flex-1 py-3 text-slate-500 font-bold hover:bg-slate-50 rounded-lg">Cancel</button>
+                                            <button type="submit" className="flex-1 py-3 bg-brand text-white font-bold rounded-lg hover:bg-brand-dark">Save</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -412,7 +489,7 @@ export default function AdminDashboard() {
                             </div>
                         </div>
 
-                        {/* EDIT MANAGER MODAL */}
+                        {/* MANAGER MODAL */}
                         {isManagerModalOpen && editingManager && (
                             <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
                                 <div className="bg-white rounded-2xl w-full max-w-lg p-8 shadow-2xl">
@@ -469,7 +546,61 @@ export default function AdminDashboard() {
                     </div>
                 )}
 
-                {/* TAB 4: KNOWLEDGE */}
+                {/* TAB 4: BRAIN SEARCH (NEW) */}
+                {activeTab === 'brain' && (
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-8 min-h-[600px]">
+                        <div className="text-center max-w-2xl mx-auto mb-10">
+                            <div className="w-16 h-16 bg-brand/10 text-brand rounded-full flex items-center justify-center mx-auto mb-4">
+                                <BrainCircuit className="w-8 h-8" />
+                            </div>
+                            <h2 className="text-2xl font-bold text-slate-800 mb-2">Admin Brain Search</h2>
+                            <p className="text-slate-500">Query your entire document database across all communities at once. Perfect for finding specific rules or checking consistency.</p>
+                        </div>
+
+                        <form onSubmit={handleBrainSearch} className="max-w-3xl mx-auto mb-12 relative">
+                            <input
+                                type="text"
+                                placeholder="e.g. 'What are the fence height limits?' or 'Which communities ban solar panels?'"
+                                className="w-full p-5 pl-6 pr-16 rounded-full border-2 border-slate-200 shadow-sm focus:border-brand focus:outline-none text-lg"
+                                value={brainQuery}
+                                onChange={(e) => setBrainQuery(e.target.value)}
+                            />
+                            <button
+                                type="submit"
+                                disabled={isBrainSearching || !brainQuery.trim()}
+                                className="absolute right-2 top-2 p-3 bg-brand text-white rounded-full hover:bg-brand-dark disabled:opacity-50 transition-colors"
+                            >
+                                {isBrainSearching ? <Loader className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
+                            </button>
+                        </form>
+
+                        <div className="max-w-4xl mx-auto space-y-6">
+                            {brainResults.length > 0 && (
+                                <h3 className="font-bold text-slate-400 uppercase tracking-wider text-xs mb-4">Search Results</h3>
+                            )}
+
+                            {brainResults.map((result, i) => (
+                                <div key={i} className="bg-slate-50 p-6 rounded-xl border border-slate-200">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <span className="bg-white border border-slate-200 px-3 py-1 rounded-full text-xs font-bold text-brand">
+                                            {result.community_name}
+                                        </span>
+                                        <span className="text-xs text-slate-400 font-mono">{result.filename}</span>
+                                    </div>
+                                    <p className="text-slate-700 leading-relaxed text-sm">
+                                        "...{result.content}..."
+                                    </p>
+                                </div>
+                            ))}
+
+                            {brainResults.length === 0 && !isBrainSearching && brainQuery && (
+                                <div className="text-center text-slate-400 py-10">No relevant documents found.</div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* TAB 5: KNOWLEDGE (Existing code...) */}
                 {activeTab === 'knowledge' && (
                     <div className="space-y-6">
                         <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
@@ -506,9 +637,15 @@ export default function AdminDashboard() {
                         <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
                             <div className="p-6 border-b border-slate-100 flex justify-between items-center">
                                 <h2 className="text-lg font-bold text-slate-800">
-                                    {selectedCommId ? `Active Files for ${communities.find(c => c.id.toString() === selectedCommId)?.name}` : "All Active Files"}
+                                    {selectedCommId
+                                        ? `Active Files for ${communities.find(c => c.id.toString() === selectedCommId)?.name}`
+                                        : "All Active Files"}
                                 </h2>
-                                <span className="text-xs text-slate-400">{selectedCommId ? `${filteredDocuments.length} document(s)` : "Select a community to filter"}</span>
+                                <span className="text-xs text-slate-400">
+                                    {selectedCommId
+                                        ? `${filteredDocuments.length} document(s)`
+                                        : "Select a community to filter"}
+                                </span>
                             </div>
 
                             {selectedCommId ? (
@@ -522,14 +659,29 @@ export default function AdminDashboard() {
                                     </thead>
                                     <tbody className="divide-y divide-slate-50">
                                     {filteredDocuments.length === 0 ? (
-                                        <tr><td colSpan={3} className="px-6 py-8 text-center text-slate-400 italic">No documents found for this community.</td></tr>
+                                        <tr>
+                                            <td colSpan={3} className="px-6 py-8 text-center text-slate-400 italic">No documents found for this community.</td>
+                                        </tr>
                                     ) : (
                                         filteredDocuments.map((doc, idx) => (
                                             <tr key={doc.id + idx} className="hover:bg-slate-50">
-                                                <td className="px-6 py-4 font-medium text-slate-800 flex items-center gap-2"><FileText className="w-4 h-4 text-brand-accent" />{doc.filename}</td>
-                                                <td className="px-6 py-4 text-sm text-slate-600"><span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-xs font-bold">{doc.chunk_count}</span></td>
+                                                <td className="px-6 py-4 font-medium text-slate-800 flex items-center gap-2">
+                                                    <FileText className="w-4 h-4 text-brand-accent" />
+                                                    {doc.filename}
+                                                </td>
+                                                <td className="px-6 py-4 text-sm text-slate-600">
+                                                        <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-xs font-bold">
+                                                            {doc.chunk_count}
+                                                        </span>
+                                                </td>
                                                 <td className="px-6 py-4 text-right">
-                                                    <button onClick={() => handleDeleteDocument(doc.filename, doc.community_id)} className="text-slate-300 hover:text-red-500 p-2 transition-colors"><Trash2 className="w-5 h-5" /></button>
+                                                    <button
+                                                        onClick={() => handleDeleteDocument(doc.filename, doc.community_id)}
+                                                        className="text-slate-300 hover:text-red-500 p-2 transition-colors"
+                                                        title="Delete File"
+                                                    >
+                                                        <Trash2 className="w-5 h-5" />
+                                                    </button>
                                                 </td>
                                             </tr>
                                         ))
@@ -547,7 +699,7 @@ export default function AdminDashboard() {
                     </div>
                 )}
 
-                {/* TAB 5: ANALYTICS */}
+                {/* TAB 6: ANALYTICS (Existing code...) */}
                 {activeTab === 'analytics' && (
                     <div className="space-y-8 animate-in fade-in duration-500">
                         {/* Header & Controls */}
@@ -568,20 +720,34 @@ export default function AdminDashboard() {
                                     <Filter className="w-4 h-4 text-slate-400 absolute right-3 top-3.5 pointer-events-none" />
                                 </div>
                             </div>
+
                             <div className="flex gap-2">
-                                <button onClick={handleExportCSV} className="bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-brand px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
-                                    <FileText className="w-4 h-4" /> Export CSV
+                                <button
+                                    onClick={handleExportCSV}
+                                    className="bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-brand px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                                >
+                                    <FileText className="w-4 h-4" />
+                                    Export CSV
                                 </button>
-                                <button onClick={handleClearAnalytics} className="text-red-400 hover:text-red-600 hover:bg-red-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
-                                    <Trash2 className="w-4 h-4" /> {analyticsCommId ? "Clear Community" : "Clear History"}
+
+                                <button
+                                    onClick={handleClearAnalytics}
+                                    className="text-red-400 hover:text-red-600 hover:bg-red-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                    {analyticsCommId ? "Clear Community" : "Clear History"}
                                 </button>
                             </div>
                         </div>
 
                         {!analytics ? (
-                            <div className="text-center py-20 bg-white rounded-xl border border-slate-100 shadow-sm"><Loader className="w-8 h-8 text-brand animate-spin mx-auto mb-4" /><p className="text-slate-500">Crunching the numbers...</p></div>
+                            <div className="text-center py-20 bg-white rounded-xl border border-slate-100 shadow-sm">
+                                <Loader className="w-8 h-8 text-brand animate-spin mx-auto mb-4" />
+                                <p className="text-slate-500">Crunching the numbers...</p>
+                            </div>
                         ) : (
                             <>
+                                {/* Overview Cards */}
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                     <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
                                         <div className="flex items-center gap-3 mb-2">
@@ -595,32 +761,57 @@ export default function AdminDashboard() {
                                             <div className="p-2 bg-orange-50 text-orange-600 rounded-lg"><AlertCircle className="w-5 h-5"/></div>
                                             <h3 className="text-slate-500 font-medium text-sm uppercase tracking-wide">Top Issue</h3>
                                         </div>
-                                        <p className="text-2xl font-bold text-slate-800 truncate">{analytics.topics[0]?.topic || "N/A"}</p>
+                                        <p className="text-2xl font-bold text-slate-800 truncate">
+                                            {analytics.topics[0]?.topic || "N/A"}
+                                        </p>
+                                        <p className="text-xs text-slate-400 mt-1">Most frequent topic detected</p>
                                     </div>
                                     <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
                                         <div className="flex items-center gap-3 mb-2">
                                             <div className="p-2 bg-green-50 text-green-600 rounded-lg"><TrendingUp className="w-5 h-5"/></div>
                                             <h3 className="text-slate-500 font-medium text-sm uppercase tracking-wide">Top Category</h3>
                                         </div>
-                                        <p className="text-2xl font-bold text-slate-800 truncate">{analytics.categories[0]?.category || "N/A"}</p>
+                                        <p className="text-2xl font-bold text-slate-800 truncate">
+                                            {analytics.categories[0]?.category || "N/A"}
+                                        </p>
                                     </div>
                                 </div>
 
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                    {/* Category Breakdown */}
                                     <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-100">
                                         <h3 className="text-lg font-bold text-slate-800 mb-6">Inquiry Categories</h3>
                                         {analytics.categories.length === 0 ? <p className="text-slate-400 text-sm">No data yet.</p> : (
-                                            <SimpleBarChart total={analytics.total} data={analytics.categories.map(c => ({ label: c.category, value: parseInt(c.count as any), color: c.category === 'Complaint' ? 'bg-red-500' : c.category === 'Maintenance' ? 'bg-orange-500' : 'bg-brand' }))} />
+                                            <SimpleBarChart
+                                                total={analytics.total}
+                                                data={analytics.categories.map(c => ({
+                                                    label: c.category,
+                                                    value: parseInt(c.count as any),
+                                                    color: c.category === 'Complaint' ? 'bg-red-500' : c.category === 'Maintenance' ? 'bg-orange-500' : 'bg-brand'
+                                                }))}
+                                            />
                                         )}
                                     </div>
+
+                                    {/* Top Specific Topics */}
                                     <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-100">
                                         <h3 className="text-lg font-bold text-slate-800 mb-6">Top Specific Topics</h3>
                                         {analytics.topics.length === 0 ? <p className="text-slate-400 text-sm">No data yet.</p> : (
                                             <div className="space-y-4">
                                                 {analytics.topics.map((t, i) => (
                                                     <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                                                        <div className="flex items-center gap-3"><span className="font-mono text-slate-400 text-sm w-4">#{i+1}</span><span className="font-bold text-slate-700">{t.topic}</span></div>
-                                                        <div className="flex items-center gap-2"><span className={`text-[10px] px-2 py-0.5 rounded-full uppercase font-bold tracking-wider ${t.category === 'Complaint' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>{t.category}</span><span className="font-bold text-slate-900">{t.count}</span></div>
+                                                        <div className="flex items-center gap-3">
+                                                            <span className="font-mono text-slate-400 text-sm w-4">#{i+1}</span>
+                                                            <span className="font-bold text-slate-700">{t.topic}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className={`text-[10px] px-2 py-0.5 rounded-full uppercase font-bold tracking-wider ${
+                                                                t.category === 'Complaint' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'
+                                                            }`}>
+                                                                {t.category}
+                                                            </span>
+                                                            <span className="font-bold text-slate-900">{t.count}</span>
+                                                        </div>
                                                     </div>
                                                 ))}
                                             </div>
@@ -631,6 +822,7 @@ export default function AdminDashboard() {
                         )}
                     </div>
                 )}
+
             </div>
         </div>
     );
