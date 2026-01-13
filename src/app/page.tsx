@@ -1,17 +1,14 @@
 import Link from 'next/link';
-import { Shield, Hammer, Users, MapPin, ArrowRight } from 'lucide-react';
+import { Shield, Hammer, Users, MapPin, ArrowRight, CheckCircle2 } from 'lucide-react';
 import Reveal from "@/components/Reveal";
 import ShinyButton from "@/components/ShinyButton";
 import Testimonials from "@/components/Testimonials";
 import FAQ from "@/components/FAQ";
-import pool from '@/lib/db'; // Connect to DB
+import pool from '@/lib/db';
 
-// 1. Fetch Featured Communities dynamically
 async function getFeaturedCommunities() {
   const client = await pool.connect();
   try {
-    // We grab a few communities to show on the homepage
-    // You can change LIMIT 6 to show more or less
     const res = await client.query('SELECT * FROM communities ORDER BY name ASC LIMIT 6');
     return res.rows;
   } finally {
@@ -23,147 +20,149 @@ export default async function Home() {
   const communities = await getFeaturedCommunities();
 
   return (
-      <main className="min-h-screen bg-slate-50">
-        {/* Hero Section */}
-        <div className="relative pt-40 pb-32 lg:pt-56 lg:pb-48 overflow-hidden bg-hero-gradient">
+      <main className="min-h-screen bg-slate-50 selection:bg-brand selection:text-white">
 
-          {/* Background Shapes */}
-          <div className="absolute top-0 right-0 -translate-y-12 translate-x-12 w-96 h-96 bg-brand-accent/20 rounded-full blur-3xl animate-pulse"></div>
-          <div className="absolute bottom-0 left-0 translate-y-12 -translate-x-12 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl"></div>
+        {/* HERO SECTION */}
+        <div className="relative pt-40 pb-40 lg:pt-56 lg:pb-56 overflow-hidden bg-hero-gradient">
+
+          {/* Subtle Grid Pattern Overlay */}
+          <div className="absolute inset-0 bg-grid-white opacity-20 pointer-events-none"></div>
+
+          {/* Animated Background Shapes (Refined) */}
+          <div className="absolute top-1/4 right-0 w-[500px] h-[500px] bg-brand-accent/30 rounded-full blur-[100px] animate-float pointer-events-none"></div>
+          <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-[100px] animate-float-delayed pointer-events-none"></div>
 
           <div className="relative z-10 container mx-auto px-4 text-center text-white flex flex-col items-center">
 
             <Reveal>
-              <span className="inline-block py-1 px-3 rounded-full bg-white/10 border border-white/20 text-sm font-medium mb-6 backdrop-blur-sm">
-                Trusted by 30+ Communities in NC
-              </span>
+              <div className="inline-flex items-center gap-2 py-1.5 px-4 rounded-full bg-white/10 border border-white/20 text-sm font-medium mb-8 backdrop-blur-md shadow-lg shadow-black/5 hover:bg-white/20 transition-colors cursor-default">
+                <CheckCircle2 className="w-4 h-4 text-brand-accent" />
+                <span className="text-blue-50">Trusted by 30+ NC Communities</span>
+              </div>
             </Reveal>
 
             <Reveal delay={0.1}>
-              <h1 className="text-5xl md:text-7xl font-serif font-bold mb-6 tracking-tight drop-shadow-sm text-transparent bg-clip-text bg-gradient-to-r from-white via-blue-100 to-white">
-                Community Focus
+              <h1 className="text-5xl md:text-7xl font-serif font-bold mb-8 tracking-tight drop-shadow-sm">
+                Focus on your <br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-200 via-white to-blue-200">
+                  Community.
+                </span>
               </h1>
             </Reveal>
 
             <Reveal delay={0.2}>
-              <p className="text-xl md:text-2xl text-blue-100 max-w-2xl mx-auto mb-10 font-light leading-relaxed">
-                Professional association management focused on transparency, communication, and community well-being.
+              <p className="text-lg md:text-xl text-blue-100/90 max-w-2xl mx-auto mb-12 font-light leading-relaxed">
+                We handle the heavy lifting of association management with transparency,
+                modern technology, and a personal touch.
               </p>
             </Reveal>
 
             <Reveal delay={0.3}>
-              <ShinyButton href="/contact" className="mt-4">
-                Get a Proposal
-              </ShinyButton>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <ShinyButton href="/contact">
+                  Request a Proposal
+                </ShinyButton>
+                <Link href="/services" className="px-8 py-4 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold backdrop-blur-sm transition-all hover:-translate-y-0.5">
+                  Explore Services
+                </Link>
+              </div>
             </Reveal>
 
           </div>
+
+          {/* Decorative Bottom Wave/Fade */}
+          <div className="absolute bottom-0 left-0 w-full h-24 bg-gradient-to-t from-slate-50 to-transparent"></div>
         </div>
 
-        {/* FEATURED COMMUNITIES GRID (Replaces the broken Switcher) */}
+        {/* COMMUNITIES GRID - Floating Card Effect */}
         <div className="container mx-auto px-4 -mt-24 relative z-20">
-
-          {/* Header Card */}
           <Reveal width="100%">
-            <div className="bg-white p-8 rounded-2xl shadow-xl border border-slate-100 text-center mb-12">
-              <h3 className="text-2xl font-bold text-slate-800 mb-2">Find Your Community</h3>
-              <p className="text-slate-500 mb-6">Select your neighborhood to access documents, portals, and news.</p>
+            <div className="bg-white/80 backdrop-blur-xl p-8 md:p-12 rounded-3xl shadow-2xl shadow-slate-200/50 border border-white/50 text-center mb-24">
+              <h3 className="text-2xl font-bold text-slate-800 mb-3">Find Your Community</h3>
+              <p className="text-slate-500 mb-8 max-w-xl mx-auto">Access your homeowner portal, view documents, and stay up to date with the latest neighborhood news.</p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-left">
                 {communities.map((comm) => (
                     <Link
                         key={comm.id}
-                        href={`/communities/${comm.slug}`} // This uses the CORRECT slug from DB
-                        className="flex items-center p-4 rounded-xl border border-slate-200 hover:border-brand hover:shadow-md transition-all group bg-slate-50 hover:bg-white"
+                        href={`/communities/${comm.slug}`}
+                        className="flex items-center p-4 rounded-xl border border-slate-100 bg-white shadow-sm hover:shadow-glow hover:border-brand/30 hover:-translate-y-1 transition-all duration-300 group"
                     >
-                      <div className="bg-white p-2 rounded-full shadow-sm mr-3 group-hover:scale-110 transition-transform">
-                        <MapPin className="w-5 h-5 text-brand" />
+                      <div className="bg-blue-50 p-2.5 rounded-lg mr-4 group-hover:bg-brand group-hover:text-white transition-colors duration-300">
+                        <MapPin className="w-5 h-5 text-brand group-hover:text-white" />
                       </div>
-                      <span className="font-bold text-slate-700 group-hover:text-brand truncate">{comm.name}</span>
+                      <span className="font-semibold text-slate-700 group-hover:text-brand transition-colors truncate">{comm.name}</span>
                     </Link>
                 ))}
               </div>
 
-              <div className="mt-8 pt-6 border-t border-slate-100">
-                <Link href="/communities" className="inline-flex items-center font-bold text-brand hover:underline">
-                  View All 30+ Communities <ArrowRight className="w-4 h-4 ml-1" />
+              <div className="mt-10 pt-8 border-t border-slate-100/60">
+                <Link href="/communities" className="inline-flex items-center font-bold text-brand hover:text-brand-dark transition-colors hover:underline decoration-2 underline-offset-4">
+                  View All Communities <ArrowRight className="w-4 h-4 ml-2" />
                 </Link>
               </div>
             </div>
           </Reveal>
 
-          {/* Modern Features Grid */}
-          <div className="mt-24 mb-20">
+          {/* FEATURES GRID */}
+          <div className="mb-32">
             <div className="text-center mb-16">
               <Reveal width="100%">
                 <div className="flex flex-col items-center">
-                  <h2 className="text-3xl font-bold text-slate-800">Why Boards Choose Us</h2>
-                  <div className="w-16 h-1 bg-brand mt-4 rounded-full"></div>
+                  <span className="text-brand font-bold tracking-wider uppercase text-xs mb-2">Why Choose Us</span>
+                  <h2 className="text-3xl md:text-4xl font-serif font-bold text-slate-900">Built for Modern Boards</h2>
                 </div>
               </Reveal>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-left">
-              <Reveal delay={0.1}>
-                <div className="group p-8 bg-white rounded-2xl shadow-sm border border-slate-100 hover:shadow-card hover:-translate-y-1 transition-all duration-300 h-full">
-                  <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center mb-6 group-hover:bg-brand group-hover:text-white transition-colors">
-                    <Shield className="w-6 h-6 text-brand group-hover:text-white" />
-                  </div>
-                  <h3 className="text-xl font-bold text-slate-800 mb-3">Financial Security</h3>
-                  <p className="text-slate-600 leading-relaxed">
-                    Secure assessment collection and transparent reporting that gives boards peace of mind.
-                  </p>
-                </div>
-              </Reveal>
-
-              <Reveal delay={0.2}>
-                <div className="group p-8 bg-white rounded-2xl shadow-sm border border-slate-100 hover:shadow-card hover:-translate-y-1 transition-all duration-300 h-full">
-                  <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center mb-6 group-hover:bg-brand group-hover:text-white transition-colors">
-                    <Hammer className="w-6 h-6 text-brand group-hover:text-white" />
-                  </div>
-                  <h3 className="text-xl font-bold text-slate-800 mb-3">Property Maintenance</h3>
-                  <p className="text-slate-600 leading-relaxed">
-                    Regular site inspections and trusted vendor coordination to protect property values.
-                  </p>
-                </div>
-              </Reveal>
-
-              <Reveal delay={0.3}>
-                <div className="group p-8 bg-white rounded-2xl shadow-sm border border-slate-100 hover:shadow-card hover:-translate-y-1 transition-all duration-300 h-full">
-                  <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center mb-6 group-hover:bg-brand group-hover:text-white transition-colors">
-                    <Users className="w-6 h-6 text-brand group-hover:text-white" />
-                  </div>
-                  <h3 className="text-xl font-bold text-slate-800 mb-3">Community Support</h3>
-                  <p className="text-slate-600 leading-relaxed">
-                    Dedicated support for boards and homeowners, ensuring communication is never an issue.
-                  </p>
-                </div>
-              </Reveal>
+              {[
+                { icon: Shield, title: "Financial Integrity", desc: "Bank-grade security for assessments, transparent real-time reporting, and rigorous audit trails." },
+                { icon: Hammer, title: "Proactive Maintenance", desc: "We don't just fix problems; we prevent them with regular site inspections and trusted vendor networks." },
+                { icon: Users, title: "Community First", desc: "Dedicated managers who actually answer the phone and care about the neighbors they serve." }
+              ].map((feature, idx) => (
+                  <Reveal key={idx} delay={0.1 * (idx + 1)}>
+                    <div className="group p-8 bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-card-hover hover:border-brand/20 transition-all duration-300 h-full relative overflow-hidden">
+                      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-brand via-brand-accent to-brand opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                      <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
+                        <feature.icon className="w-7 h-7 text-brand" />
+                      </div>
+                      <h3 className="text-xl font-bold text-slate-800 mb-3">{feature.title}</h3>
+                      <p className="text-slate-600 leading-relaxed text-sm">
+                        {feature.desc}
+                      </p>
+                    </div>
+                  </Reveal>
+              ))}
             </div>
           </div>
 
-          {/* TESTIMONIALS SECTION */}
-          <div className="mb-24">
-            <div className="text-center mb-12">
-              <Reveal>
-                <h2 className="text-3xl font-bold text-slate-800">What Our Communities Say</h2>
+          {/* TESTIMONIALS SECTION - With Background */}
+          <div className="mb-24 py-20 -mx-4 bg-slate-100/50 border-y border-slate-200/60">
+            <div className="container mx-auto px-4">
+              <div className="text-center mb-12">
+                <Reveal>
+                  <h2 className="text-3xl font-serif font-bold text-slate-900">Community Voices</h2>
+                  <p className="text-slate-500 mt-2">Hear from the board members we work with every day.</p>
+                </Reveal>
+              </div>
+              <Reveal delay={0.2}>
+                <Testimonials />
               </Reveal>
             </div>
-            <Reveal delay={0.2}>
-              <Testimonials />
-            </Reveal>
           </div>
 
           {/* FAQ SECTION */}
-          <div className="mb-24">
+          <div className="mb-24 container mx-auto px-4 max-w-4xl">
             <div className="text-center mb-12">
               <Reveal>
-                <h2 className="text-3xl font-bold text-slate-800 mb-4">Common Questions</h2>
-                <div className="w-16 h-1 bg-brand mx-auto rounded-full"></div>
+                <h2 className="text-3xl font-serif font-bold text-slate-900 mb-4">Frequently Asked Questions</h2>
               </Reveal>
             </div>
             <Reveal delay={0.2}>
-              <FAQ />
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8">
+                <FAQ />
+              </div>
             </Reveal>
           </div>
 
