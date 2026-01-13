@@ -5,6 +5,15 @@ import Link from 'next/link';
 import { Menu, X } from 'lucide-react';
 import ShinyButton from './ShinyButton';
 
+// Explicitly define menu items to avoid routing errors
+const NAV_ITEMS = [
+    { label: 'Home', href: '/' },
+    { label: 'About Us', href: '/about' }, // Fixed: Points to /about instead of /about-us
+    { label: 'Communities', href: '/communities' },
+    { label: 'Services', href: '/services' },
+    { label: 'Resources', href: '/resources' },
+];
+
 export default function Navbar() {
     const [isOpen, setIsOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
@@ -33,11 +42,7 @@ export default function Navbar() {
                     <div className="bg-brand text-white p-2 rounded-xl font-bold text-xl shadow-lg shadow-brand/20 group-hover:scale-105 transition-transform">
                         CF
                     </div>
-                    {/* Dark text on scroll, Light text on transparent hero (optional, but here we assume hero is dark so we might need logic.
-                        For simplicity, let's keep text dark or white depending on design.
-                        Given the hero is dark blue, let's use a trick: Force text color or assume a white nav always?
-                        Actually, let's stick to the user's white nav style but make it glass.
-                    */}
+                    {/* Dark text on scroll, Light text on transparent hero */}
                     <span className={`text-xl font-serif font-bold tracking-tight transition-colors ${scrolled ? 'text-slate-800' : 'text-slate-800 md:text-white'}`}>
                         Community Focus
                     </span>
@@ -45,20 +50,17 @@ export default function Navbar() {
 
                 {/* Desktop Navigation */}
                 <div className="hidden md:flex items-center gap-8">
-                    {['Home', 'About Us', 'Communities', 'Services', 'Resources'].map((item) => {
-                        const href = item === 'Home' ? '/' : `/${item.toLowerCase().replace(' ', '-')}`;
-                        return (
-                            <Link
-                                key={item}
-                                href={href}
-                                className={`font-medium transition-colors text-[15px] hover:text-brand-accent
-                                    ${scrolled ? 'text-slate-600' : 'text-slate-200'}
-                                `}
-                            >
-                                {item}
-                            </Link>
-                        )
-                    })}
+                    {NAV_ITEMS.map((item) => (
+                        <Link
+                            key={item.label}
+                            href={item.href}
+                            className={`font-medium transition-colors text-[15px] hover:text-brand-accent
+                                ${scrolled ? 'text-slate-600' : 'text-slate-200'}
+                            `}
+                        >
+                            {item.label}
+                        </Link>
+                    ))}
 
                     <ShinyButton href="/contact" className="py-2.5 px-6 text-sm">
                         Contact Us
@@ -76,16 +78,16 @@ export default function Navbar() {
 
             {/* Mobile Menu Dropdown */}
             {isOpen && (
-                <div className="md:hidden bg-white border-t border-gray-100 absolute w-full shadow-lg h-screen">
+                <div className="md:hidden bg-white border-t border-gray-100 absolute w-full shadow-lg h-screen top-20 left-0 z-40">
                     <div className="flex flex-col p-6 space-y-6">
-                        {['Home', 'About Us', 'Communities', 'Services'].map((item) => (
+                        {NAV_ITEMS.map((item) => (
                             <Link
-                                key={item}
-                                href={item === 'Home' ? '/' : `/${item.toLowerCase().replace(' ', '-')}`}
+                                key={item.label}
+                                href={item.href}
                                 onClick={closeMenu}
                                 className="text-slate-800 hover:text-brand font-medium text-2xl font-serif"
                             >
-                                {item}
+                                {item.label}
                             </Link>
                         ))}
                         <div onClick={closeMenu} className="pt-4">
