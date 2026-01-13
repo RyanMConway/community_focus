@@ -5,11 +5,11 @@ import { useUser } from '@clerk/nextjs';
 import {
     Mail, Building2, Trash2, CheckCircle, Plus, BookOpen,
     Upload, FileText, Loader, Filter, ShieldAlert, BarChart3,
-    TrendingUp, MessageSquare, AlertCircle
+    TrendingUp, MessageSquare, AlertCircle, RefreshCw
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
-// --- CONFIGURATION ---
+// ... [Keep existing CONFIGURATION and TYPES unchanged] ...
 const AUTHORIZED_EMAILS = [
     "amy@communityfocusnc.com",
     "rconwayak@gmail.com",
@@ -66,12 +66,13 @@ export default function AdminDashboard() {
     const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
     const [loading, setLoading] = useState(true);
 
-    // Form State for Communities
+    // Form State
     const [isAdding, setIsAdding] = useState(false);
     const [newComm, setNewComm] = useState({ name: '', city: 'Durham, NC', portal_url: '', description: '' });
 
-    // Filter State for Knowledge Base
-    const [selectedCommId, setSelectedCommId] = useState<string>("");
+    // Filter State
+    const [selectedCommId, setSelectedCommId] = useState<string>(""); // For Knowledge Base
+    const [analyticsCommId, setAnalyticsCommId] = useState<string>(""); // <--- NEW: For Analytics
 
     // --- ACCESS CONTROL CHECK ---
     useEffect(() => {
@@ -85,12 +86,12 @@ export default function AdminDashboard() {
         }
     }, [isLoaded, user]);
 
-    // Load Data based on active tab to save bandwidth
+    // Load Data based on active tab
     useEffect(() => {
-        if (activeTab === 'analytics' && !analytics) {
-            fetchAnalytics();
+        if (activeTab === 'analytics') {
+            fetchAnalytics(); // Fetch immediately when tab opens
         }
-    }, [activeTab]);
+    }, [activeTab, analyticsCommId]); // <--- Re-fetch when filter changes
 
     const loadData = async () => {
         try {
@@ -111,7 +112,9 @@ export default function AdminDashboard() {
 
     const fetchAnalytics = async () => {
         try {
-            const res = await fetch('/api/admin/analytics?range=30d');
+            // Append communityId to query if selected
+            const query = analyticsCommId ? `?range=30d&communityId=${analyticsCommId}` : '?range=30d';
+            const res = await fetch(`/api/admin/analytics${query}`);
             const data = await res.json();
             setAnalytics(data);
         } catch (e) {
@@ -119,34 +122,24 @@ export default function AdminDashboard() {
         }
     };
 
-    if (!isLoaded) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-50">
-                <Loader className="w-8 h-8 text-brand animate-spin" />
-            </div>
-        );
-    }
+    // --- NEW: Handle Clearing Data ---
+    const handleClearAnalytics = async () => {
+        const msg = analyticsCommId
+            ? "Are you sure you want to clear analytics for THIS community?"
+            : "Are you sure you want to clear ALL analytics data? This cannot be undone.";
 
-    const userEmail = user?.primaryEmailAddress?.emailAddress;
-    if (!userEmail || !AUTHORIZED_EMAILS.includes(userEmail)) {
-        return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-6 text-center">
-                <div className="bg-red-50 p-6 rounded-2xl border border-red-100 max-w-md w-full">
-                    <ShieldAlert className="w-12 h-12 text-red-500 mx-auto mb-4" />
-                    <h1 className="text-2xl font-bold text-red-700 mb-2">Access Denied</h1>
-                    <p className="text-red-600 mb-6">
-                        You are logged in as <strong>{userEmail}</strong>, but this account does not have administrator privileges.
-                    </p>
-                    <button
-                        onClick={() => router.push('/')}
-                        className="bg-white border border-red-200 text-red-700 px-6 py-2 rounded-lg font-bold hover:bg-red-50 transition-colors"
-                    >
-                        Return Home
-                    </button>
-                </div>
-            </div>
-        );
-    }
+        if (!confirm(msg)) return;
+
+        try {
+            const query = analyticsCommId ? `?communityId=${analyticsCommId}` : '';
+            await fetch(`/api/admin/analytics${query}`, { method: 'DELETE' });
+            fetchAnalytics(); // Refresh
+        } catch (e) {
+            alert("Failed to clear data");
+        }
+    };
+
+    // ... [Keep Access Denied and SimpleBarChart checks] ...
 
     // --- HELPER: Simple Bar Chart Component ---
     const SimpleBarChart = ({ data, total }: { data: { label: string, value: number, color?: string }[], total: number }) => (
@@ -155,12 +148,12 @@ export default function AdminDashboard() {
                 <div key={i}>
                     <div className="flex justify-between text-sm mb-1">
                         <span className="font-medium text-slate-700">{item.label}</span>
-                        <span className="text-slate-500">{item.value} ({Math.round((item.value / total) * 100)}%)</span>
+                        <span className="text-slate-500">{item.value} ({total > 0 ? Math.round((item.value / total) * 100) : 0}%)</span>
                     </div>
                     <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
                         <div
                             className={`h-2.5 rounded-full ${item.color || 'bg-brand'}`}
-                            style={{ width: `${(item.value / total) * 100}%` }}
+                            style={{ width: `${total > 0 ? (item.value / total) * 100 : 0}%` }}
                         ></div>
                     </div>
                 </div>
@@ -168,56 +161,10 @@ export default function AdminDashboard() {
         </div>
     );
 
-    // --- DATA ACTIONS ---
-    const handleAddCommunity = async (e: React.FormEvent) => {
-        e.preventDefault();
-        const res = await fetch('/api/admin/communities', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(newComm)
-        });
+    if (!isLoaded) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader className="w-8 h-8 text-brand animate-spin" /></div>;
 
-        if (res.ok) {
-            loadData();
-            setIsAdding(false);
-            setNewComm({ name: '', city: 'Durham, NC', portal_url: '', description: '' });
-        }
-    };
-
-    const handleDeleteCommunity = async (id: number) => {
-        if (!confirm('Delete this community? This cannot be undone.')) return;
-        await fetch(`/api/admin/communities?id=${id}`, { method: 'DELETE' });
-        setCommunities(prev => prev.filter(c => c.id !== id));
-    };
-
-    const handleMarkRead = async (id: number) => {
-        setMessages(prev => prev.map(m => m.id === id ? { ...m, status: 'read' } : m));
-        await fetch(`/api/admin/messages/${id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: 'read' })
-        });
-    };
-
-    const handleDeleteMessage = async (id: number) => {
-        if (!confirm('Delete message?')) return;
-        setMessages(prev => prev.filter(m => m.id !== id));
-        await fetch(`/api/admin/messages/${id}`, { method: 'DELETE' });
-    };
-
-    const handleDeleteDocument = async (filename: string, communityId: number) => {
-        if (!confirm(`Permanently delete "${filename}"? This will remove it from the website, storage, and AI.`)) return;
-
-        await fetch(`/api/admin/documents?id=${encodeURIComponent(filename)}&communityId=${communityId}`, {
-            method: 'DELETE'
-        });
-
-        loadData();
-    };
-
-    const filteredDocuments = selectedCommId
-        ? documents.filter(d => d.community_id.toString() === selectedCommId)
-        : [];
+    const userEmail = user?.primaryEmailAddress?.emailAddress;
+    if (!userEmail || !AUTHORIZED_EMAILS.includes(userEmail)) return <div>Access Denied</div>;
 
     return (
         <div className="min-h-screen bg-slate-50 pb-20">
@@ -248,7 +195,7 @@ export default function AdminDashboard() {
 
             <div className="max-w-7xl mx-auto px-4 md:px-8 -mt-12 relative z-20">
 
-                {/* === TAB 1: INBOX === */}
+                {/* TAB 1: INBOX */}
                 {activeTab === 'inbox' && (
                     <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
                         <div className="p-6 border-b border-slate-100"><h2 className="text-lg font-bold text-slate-800">Messages</h2></div>
@@ -279,7 +226,7 @@ export default function AdminDashboard() {
                     </div>
                 )}
 
-                {/* === TAB 2: COMMUNITIES === */}
+                {/* TAB 2: COMMUNITIES */}
                 {activeTab === 'communities' && (
                     <div className="space-y-6">
                         <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
@@ -314,7 +261,7 @@ export default function AdminDashboard() {
                     </div>
                 )}
 
-                {/* === TAB 3: KNOWLEDGE BASE === */}
+                {/* TAB 3: KNOWLEDGE BASE */}
                 {activeTab === 'knowledge' && (
                     <div className="space-y-6">
                         <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
@@ -416,6 +363,34 @@ export default function AdminDashboard() {
                 {/* === TAB 4: ANALYTICS === */}
                 {activeTab === 'analytics' && (
                     <div className="space-y-8 animate-in fade-in duration-500">
+                        {/* 1. Header & Controls */}
+                        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 flex flex-col md:flex-row justify-between items-center gap-6">
+                            <div className="w-full md:w-1/3">
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Filter Stats by Community</label>
+                                <div className="relative">
+                                    <select
+                                        className="w-full p-3 rounded-lg border border-slate-300 bg-white appearance-none cursor-pointer hover:border-brand/50 focus:ring-2 focus:ring-brand/20 outline-none transition-all"
+                                        value={analyticsCommId}
+                                        onChange={(e) => setAnalyticsCommId(e.target.value)}
+                                    >
+                                        <option value="">-- View All Communities --</option>
+                                        {communities.map(c => (
+                                            <option key={c.id} value={c.id}>{c.name}</option>
+                                        ))}
+                                    </select>
+                                    <Filter className="w-4 h-4 text-slate-400 absolute right-3 top-3.5 pointer-events-none" />
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={handleClearAnalytics}
+                                className="text-red-400 hover:text-red-600 hover:bg-red-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                                {analyticsCommId ? "Clear Community Data" : "Clear All History"}
+                            </button>
+                        </div>
+
                         {!analytics ? (
                             <div className="text-center py-20 bg-white rounded-xl border border-slate-100 shadow-sm">
                                 <Loader className="w-8 h-8 text-brand animate-spin mx-auto mb-4" />
@@ -435,20 +410,20 @@ export default function AdminDashboard() {
                                     <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
                                         <div className="flex items-center gap-3 mb-2">
                                             <div className="p-2 bg-orange-50 text-orange-600 rounded-lg"><AlertCircle className="w-5 h-5"/></div>
-                                            <h3 className="text-slate-500 font-medium text-sm uppercase tracking-wide">Top Complaint</h3>
+                                            <h3 className="text-slate-500 font-medium text-sm uppercase tracking-wide">Top Issue</h3>
                                         </div>
                                         <p className="text-2xl font-bold text-slate-800 truncate">
                                             {analytics.topics[0]?.topic || "N/A"}
                                         </p>
-                                        <p className="text-xs text-slate-400 mt-1">Most frequent issue detected</p>
+                                        <p className="text-xs text-slate-400 mt-1">Most frequent topic detected</p>
                                     </div>
                                     <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
                                         <div className="flex items-center gap-3 mb-2">
                                             <div className="p-2 bg-green-50 text-green-600 rounded-lg"><TrendingUp className="w-5 h-5"/></div>
-                                            <h3 className="text-slate-500 font-medium text-sm uppercase tracking-wide">Most Active Community</h3>
+                                            <h3 className="text-slate-500 font-medium text-sm uppercase tracking-wide">Top Category</h3>
                                         </div>
                                         <p className="text-2xl font-bold text-slate-800 truncate">
-                                            {analytics.communities[0]?.name || "N/A"}
+                                            {analytics.categories[0]?.category || "N/A"}
                                         </p>
                                     </div>
                                 </div>
@@ -457,44 +432,49 @@ export default function AdminDashboard() {
                                     {/* Category Breakdown */}
                                     <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-100">
                                         <h3 className="text-lg font-bold text-slate-800 mb-6">Inquiry Categories</h3>
-                                        <SimpleBarChart
-                                            total={analytics.total}
-                                            data={analytics.categories.map(c => ({
-                                                label: c.category,
-                                                value: parseInt(c.count as any),
-                                                color: c.category === 'Complaint' ? 'bg-red-500' : c.category === 'Maintenance' ? 'bg-orange-500' : 'bg-brand'
-                                            }))}
-                                        />
+                                        {analytics.categories.length === 0 ? <p className="text-slate-400 text-sm">No data yet.</p> : (
+                                            <SimpleBarChart
+                                                total={analytics.total}
+                                                data={analytics.categories.map(c => ({
+                                                    label: c.category,
+                                                    value: parseInt(c.count as any),
+                                                    color: c.category === 'Complaint' ? 'bg-red-500' : c.category === 'Maintenance' ? 'bg-orange-500' : 'bg-brand'
+                                                }))}
+                                            />
+                                        )}
                                     </div>
 
                                     {/* Top Specific Topics */}
                                     <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-100">
                                         <h3 className="text-lg font-bold text-slate-800 mb-6">Top Specific Topics</h3>
-                                        <div className="space-y-4">
-                                            {analytics.topics.map((t, i) => (
-                                                <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                                                    <div className="flex items-center gap-3">
-                                                        <span className="font-mono text-slate-400 text-sm w-4">#{i+1}</span>
-                                                        <span className="font-bold text-slate-700">{t.topic}</span>
+                                        {analytics.topics.length === 0 ? <p className="text-slate-400 text-sm">No data yet.</p> : (
+                                            <div className="space-y-4">
+                                                {analytics.topics.map((t, i) => (
+                                                    <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                                                        <div className="flex items-center gap-3">
+                                                            <span className="font-mono text-slate-400 text-sm w-4">#{i+1}</span>
+                                                            <span className="font-bold text-slate-700">{t.topic}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className={`text-[10px] px-2 py-0.5 rounded-full uppercase font-bold tracking-wider ${
+                                                                t.category === 'Complaint' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'
+                                                            }`}>
+                                                                {t.category}
+                                                            </span>
+                                                            <span className="font-bold text-slate-900">{t.count}</span>
+                                                        </div>
                                                     </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <span className={`text-[10px] px-2 py-0.5 rounded-full uppercase font-bold tracking-wider ${
-                                                            t.category === 'Complaint' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'
-                                                        }`}>
-                                                            {t.category}
-                                                        </span>
-                                                        <span className="font-bold text-slate-900">{t.count}</span>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
                                 {/* Recent Live Feed */}
                                 <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-                                    <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+                                    <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
                                         <h3 className="text-lg font-bold text-slate-800">Recent Live Activity</h3>
+                                        <button onClick={fetchAnalytics} className="text-slate-400 hover:text-brand"><RefreshCw className="w-4 h-4"/></button>
                                     </div>
                                     <div className="max-h-[400px] overflow-y-auto">
                                         <table className="w-full text-left">
@@ -507,24 +487,28 @@ export default function AdminDashboard() {
                                             </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-100">
-                                            {analytics.feed.map((item) => (
-                                                <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-                                                    <td className="px-6 py-3 text-sm text-slate-400">
-                                                        {new Date(item.created_at).toLocaleDateString()} <span className="text-xs opacity-70">{new Date(item.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                                                    </td>
-                                                    <td className="px-6 py-3 text-sm font-medium text-slate-700">{item.community_name}</td>
-                                                    <td className="px-6 py-3 text-sm text-slate-600">{item.topic}</td>
-                                                    <td className="px-6 py-3">
-                                                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                                                                item.category === 'Complaint' ? 'bg-red-50 text-red-700 ring-1 ring-red-600/10' :
-                                                                    item.category === 'Maintenance' ? 'bg-orange-50 text-orange-700 ring-1 ring-orange-600/10' :
-                                                                        'bg-blue-50 text-blue-700 ring-1 ring-blue-700/10'
-                                                            }`}>
-                                                                {item.category}
-                                                            </span>
-                                                    </td>
-                                                </tr>
-                                            ))}
+                                            {analytics.feed.length === 0 ? (
+                                                <tr><td colSpan={4} className="p-8 text-center text-slate-400">No activity recorded yet.</td></tr>
+                                            ) : (
+                                                analytics.feed.map((item) => (
+                                                    <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                                                        <td className="px-6 py-3 text-sm text-slate-400">
+                                                            {new Date(item.created_at).toLocaleDateString()} <span className="text-xs opacity-70">{new Date(item.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                                        </td>
+                                                        <td className="px-6 py-3 text-sm font-medium text-slate-700">{item.community_name}</td>
+                                                        <td className="px-6 py-3 text-sm text-slate-600">{item.topic}</td>
+                                                        <td className="px-6 py-3">
+                                                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                                                                    item.category === 'Complaint' ? 'bg-red-50 text-red-700 ring-1 ring-red-600/10' :
+                                                                        item.category === 'Maintenance' ? 'bg-orange-50 text-orange-700 ring-1 ring-orange-600/10' :
+                                                                            'bg-blue-50 text-blue-700 ring-1 ring-blue-700/10'
+                                                                }`}>
+                                                                    {item.category}
+                                                                </span>
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            )}
                                             </tbody>
                                         </table>
                                     </div>
