@@ -1,105 +1,100 @@
-import {
-    Briefcase,
-    Calculator,
-    Monitor,
-    Warehouse,
-    ClipboardCheck,
-    PlusCircle
-} from 'lucide-react';
+"use client";
+
+import { useState } from 'react';
+import { Shield, Hammer, Users, ChevronDown, CheckCircle, ArrowRight } from 'lucide-react';
 
 export default function ServicesPage() {
+    const [openSection, setOpenSection] = useState<number | null>(0); // Default first one open
+
     const services = [
         {
-            title: "Administrative Services",
-            description: "Effective management requires proactive leadership. We work directly with your Board and Committees to ensure your property is maintained to the highest standards. Our team handles the day-to-day operational duties unique to your HOA, COA, or POA, enforcing governing documents with consistency and fairness.",
-            icon: <Briefcase className="w-8 h-8 text-brand" />,
+            title: "Financial Management",
+            icon: Shield,
+            description: "Complete financial oversight and transparency for your association.",
+            details: ["Assessment collection & delinquency management", "Vendor invoice processing & payment", "Detailed monthly financial reporting", "Annual budget preparation", "Audit & tax return coordination"]
         },
         {
-            title: "Financial Transparency",
-            description: "We maintain an absolute open-book policy. Our team produces clear, concise financial reports so every board member understands exactly how community funds are being utilized. We also consult with local accountants to review financials, ensuring your community makes the best use of its capital reserves.",
-            icon: <Calculator className="w-8 h-8 text-brand" />,
+            title: "Property Maintenance",
+            icon: Hammer,
+            description: "Proactive care to preserve and enhance your community's value.",
+            details: ["Regular site inspections with photo reports", "Vendor bidding & project supervision", "24/7 emergency maintenance response", "Common area upkeep oversight", "Preventative maintenance planning"]
         },
         {
-            title: "Web & Communication",
-            description: "Modern communication is key to a happy community. We provide a secure, specific web portal for your association that allows homeowners to make payments by credit card or e-check instantly. We prioritize email communication to ensure immediate responses to homeowners, board members, and vendors.",
-            icon: <Monitor className="w-8 h-8 text-brand" />,
-        },
-        {
-            title: "Facility Management",
-            description: "With over 15 years of experience managing pools, tennis courts, and clubhouses, we know how to protect your assets. We supervise the operations of your recreational facilities to ensure quality programs and services are maintained, promoting the long-term value and wellness of your neighborhood.",
-            icon: <Warehouse className="w-8 h-8 text-brand" />,
-        },
-        {
-            title: "Project Management",
-            description: "From minor repairs to major renovations, we oversee construction projects from start to finish. We keep the Board of Directors informed at every stage, ensuring vendors perform to contract specifications. We assist associations in developing long-term capital plans to preserve property values.",
-            icon: <ClipboardCheck className="w-8 h-8 text-brand" />,
-        },
-        {
-            title: "Custom Solutions",
-            description: "Every community is unique. In addition to our core services, we are flexible and willing to broaden our scope to meet your specific needs. Whether you need specialized consulting or unique on-site services, Community Focus is ready to help bring your association into focus.",
-            icon: <PlusCircle className="w-8 h-8 text-brand" />,
+            title: "Administrative Support",
+            icon: Users,
+            description: "Day-to-day operations handled with professionalism and care.",
+            details: ["Board meeting attendance & minutes", "Annual meeting coordination", "Homeowner communication portal", "Architectural review processing", "Violation enforcement & compliance"]
         }
     ];
 
     return (
-        <div className="bg-slate-50 min-h-screen">
-            {/* Page Header - Updated with Padding and Gradient */}
-            <div className="bg-hero-gradient text-white pt-40 pb-20 relative overflow-hidden">
-                {/* Background blobs for premium feel */}
-                <div className="absolute top-0 right-0 -translate-y-12 translate-x-12 w-96 h-96 bg-brand-accent/10 rounded-full blur-3xl"></div>
-
-                <div className="container mx-auto px-4 text-center relative z-10">
-                    <h1 className="text-4xl md:text-6xl font-serif font-bold mb-6 drop-shadow-sm">Our Services</h1>
-                    <p className="text-blue-100 max-w-3xl mx-auto text-lg md:text-xl leading-relaxed font-light">
-                        Innovative Association Management. We offer tailored solutions to protect your property values and build a stronger community.
+        <main className="min-h-screen bg-slate-50 pb-20">
+            {/* Header Fix: Added pt-32 for glass navbar */}
+            <div className="bg-brand-dark text-white pt-32 pb-20 px-6 text-center relative overflow-hidden">
+                <div className="relative z-10">
+                    <h1 className="text-4xl md:text-5xl font-serif font-bold mb-6">Our Services</h1>
+                    <p className="text-brand-accent text-lg max-w-xl mx-auto font-light">
+                        Comprehensive management solutions tailored to the unique needs of your community.
                     </p>
                 </div>
+                {/* Background blobbies */}
+                <div className="absolute top-0 left-0 w-full h-full bg-[url('/grid.svg')] opacity-10"></div>
             </div>
 
-            {/* Services Grid */}
-            <div className="container mx-auto px-4 py-20">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {services.map((service, index) => (
-                        <div
-                            key={index}
-                            className="bg-white p-8 md:p-10 rounded-2xl shadow-sm hover:shadow-card hover:-translate-y-1 transition-all duration-300 border border-slate-100 flex flex-col items-start h-full group"
-                        >
-                            <div className="bg-blue-50 p-4 rounded-xl mb-6 group-hover:bg-brand group-hover:text-white transition-colors">
-                                {/* Clone the icon to apply hover styles if needed, or rely on CSS */}
-                                <div className="text-brand group-hover:text-white transition-colors">
-                                    {service.icon}
+            <div className="max-w-5xl mx-auto px-6 -mt-16 relative z-20">
+                <div className="space-y-4">
+                    {services.map((service, index) => {
+                        const isOpen = openSection === index;
+                        return (
+                            <div
+                                key={index}
+                                className={`bg-white rounded-2xl border transition-all duration-300 overflow-hidden
+                                    ${isOpen ? 'shadow-xl border-brand/20 ring-1 ring-brand/10' : 'shadow-sm border-slate-100 hover:border-slate-300'}
+                                `}
+                            >
+                                <button
+                                    onClick={() => setOpenSection(isOpen ? null : index)}
+                                    className="w-full flex items-center justify-between p-6 md:p-8 text-left group"
+                                >
+                                    <div className="flex items-center gap-6">
+                                        <div className={`p-4 rounded-xl transition-all duration-300 ${isOpen ? 'bg-brand text-white rotate-3 scale-110' : 'bg-slate-50 text-slate-500 group-hover:bg-blue-50 group-hover:text-brand'}`}>
+                                            <service.icon className="w-6 h-6" />
+                                        </div>
+                                        <div>
+                                            <h2 className={`text-xl font-bold mb-1 transition-colors ${isOpen ? 'text-brand-dark' : 'text-slate-700'}`}>
+                                                {service.title}
+                                            </h2>
+                                            <p className="text-slate-500 text-sm md:text-base">{service.description}</p>
+                                        </div>
+                                    </div>
+                                    <div className={`p-2 rounded-full transition-all ${isOpen ? 'bg-slate-100 rotate-180 text-brand' : 'text-slate-300'}`}>
+                                        <ChevronDown className="w-5 h-5" />
+                                    </div>
+                                </button>
+
+                                <div className={`transition-all duration-500 ease-in-out ${isOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
+                                    <div className="px-8 pb-8 pl-24">
+                                        <div className="h-px w-full bg-slate-100 mb-6"></div>
+                                        <ul className="grid grid-cols-1 md:grid-cols-2 gap-y-3 gap-x-8">
+                                            {service.details.map((detail, idx) => (
+                                                <li key={idx} className="flex items-start gap-3 text-slate-600 text-sm">
+                                                    <CheckCircle className="w-4 h-4 text-brand-accent flex-shrink-0 mt-0.5" />
+                                                    <span>{detail}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                        <div className="mt-8 pt-4">
+                                            <a href="/contact" className="text-brand font-bold text-sm flex items-center hover:gap-2 transition-all">
+                                                Request a Proposal <ArrowRight className="w-4 h-4 ml-1" />
+                                            </a>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                            <h3 className="text-2xl font-bold text-slate-800 mb-4">
-                                {service.title}
-                            </h3>
-                            <p className="text-slate-600 leading-relaxed text-lg">
-                                {service.description}
-                            </p>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
-
-            {/* CTA Section */}
-            <div className="container mx-auto px-4 pb-24">
-                <div className="bg-brand text-white rounded-3xl p-12 text-center shadow-glow relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-64 h-64 bg-white opacity-10 rounded-full -translate-x-1/2 -translate-y-1/2"></div>
-
-                    <div className="relative z-10">
-                        <h2 className="text-3xl font-serif font-bold mb-4">Bring Your Association Into Focus</h2>
-                        <p className="mb-8 text-blue-50 text-lg max-w-2xl mx-auto">
-                            Ready to upgrade your management experience? Request a proposal today.
-                        </p>
-                        <a
-                            href="/contact"
-                            className="inline-block bg-white text-brand-dark font-bold py-4 px-10 rounded-full hover:bg-slate-50 transition-colors shadow-lg hover:shadow-xl hover:-translate-y-0.5"
-                        >
-                            Contact Us Today
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
+        </main>
     );
 }

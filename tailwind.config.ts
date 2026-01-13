@@ -40,13 +40,19 @@ const config: Config = {
                 'float-delayed': {
                     '0%, 100%': { transform: 'translateY(0)' },
                     '50%': { transform: 'translateY(-15px)' },
+                },
+                'infinite-scroll': {
+                    from: { transform: 'translateX(0)' },
+                    to: { transform: 'translateX(-50%)' },
                 }
             },
             animation: {
                 'shimmer-slide': 'shimmer-slide 0.8s ease-in-out infinite',
                 'float': 'float 6s ease-in-out infinite',
                 'float-delayed': 'float-delayed 7s ease-in-out infinite 1s',
+                'infinite-scroll': 'infinite-scroll 40s linear infinite',
             },
+
         },
     },
     plugins: [],

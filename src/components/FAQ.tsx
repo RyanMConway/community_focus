@@ -28,41 +28,47 @@ export default function FAQ() {
 
     return (
         <div className="max-w-3xl mx-auto">
-            {faqs.map((faq, index) => (
-                <div key={index} className="mb-4">
-                    <button
-                        onClick={() => setActiveIndex(activeIndex === index ? null : index)}
-                        className={`w-full flex items-center justify-between p-6 text-left bg-white border transition-all duration-300 rounded-2xl ${
-                            activeIndex === index
-                                ? 'border-brand shadow-md ring-1 ring-brand'
-                                : 'border-slate-100 hover:border-brand-accent/50'
+            {faqs.map((faq, index) => {
+                const isOpen = activeIndex === index;
+
+                return (
+                    <div
+                        key={index}
+                        className={`mb-4 border rounded-2xl overflow-hidden transition-all duration-300 ${
+                            isOpen
+                                ? "bg-blue-50/50 border-brand/30 shadow-md ring-1 ring-brand/10"
+                                : "bg-white border-slate-200 hover:border-brand/30 hover:shadow-sm"
                         }`}
                     >
-            <span className={`font-bold text-lg ${activeIndex === index ? 'text-brand-dark' : 'text-slate-700'}`}>
-              {faq.question}
-            </span>
-                        <div className={`p-2 rounded-full transition-colors ${activeIndex === index ? 'bg-brand text-white' : 'bg-slate-50 text-slate-400'}`}>
-                            {activeIndex === index ? <Minus className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-                        </div>
-                    </button>
+                        <button
+                            onClick={() => setActiveIndex(isOpen ? null : index)}
+                            className="w-full flex items-center justify-between p-6 text-left focus:outline-none group"
+                        >
+                            <span className={`font-bold text-lg transition-colors ${isOpen ? 'text-brand-dark' : 'text-slate-700'}`}>
+                                {faq.question}
+                            </span>
+                            <div className={`p-2 rounded-full transition-colors flex-shrink-0 ml-4 ${isOpen ? 'bg-brand text-white' : 'bg-slate-100 text-slate-400 group-hover:text-brand'}`}>
+                                {isOpen ? <Minus className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                            </div>
+                        </button>
 
-                    <AnimatePresence>
-                        {activeIndex === index && (
-                            <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: "auto", opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                transition={{ duration: 0.3, ease: "easeInOut" }}
-                                className="overflow-hidden"
-                            >
-                                <div className="p-6 pt-0 text-slate-600 leading-relaxed border-l-2 border-brand ml-6 my-2">
-                                    {faq.answer}
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </div>
-            ))}
+                        <AnimatePresence>
+                            {isOpen && (
+                                <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: "auto", opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    transition={{ duration: 0.3, ease: "easeInOut" }}
+                                >
+                                    <div className="px-6 pb-6 pt-0 text-slate-700 leading-relaxed">
+                                        {faq.answer}
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+                );
+            })}
         </div>
     );
 }
