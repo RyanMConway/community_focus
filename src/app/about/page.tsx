@@ -6,14 +6,14 @@ import Reveal from '@/components/Reveal';
 const teamMembers = [
     {
         name: "Robin Conway",
-        title: "President / Owner",
+        title: "VP of Association Services", // <--- UPDATED
         image: "/team/robin-conway.jpg",
         bio: "Dedicated to building strong community relationships and ensuring transparent management for all our associations.",
         email: "rconway@communityfocusnc.com"
     },
     {
         name: "Josh Lindgren",
-        title: "Senior Association Manager",
+        title: "Owner", // <--- UPDATED
         image: "/team/josh-lindgren.jpg",
         bio: "Expert in property maintenance and vendor coordination, ensuring that your community always looks its best.",
         email: "jlindgren@communityfocusnc.com"
@@ -25,17 +25,7 @@ const teamMembers = [
         bio: "Madison brings a wealth of operational expertise to the team. Full bio coming soon...",
         email: "mkichline@communityfocusnc.com"
     },
-    // Placeholder for 4th employee
-    /*
-    {
-        name: "New Employee",
-        title: "Title",
-        image: "/team/placeholder.jpg",
-        bio: "Bio coming soon...",
-        email: "email@communityfocusnc.com"
-    },
-    */
-    // Placeholder for 5th employee
+    // Placeholder for future employees
     /*
     {
         name: "New Employee",
@@ -105,7 +95,6 @@ export default function AboutPage() {
                 {/* 3. TEAM SECTION */}
                 <div className="mb-20">
                     <div className="text-center mb-16">
-                        {/* FIX 1: Added width="100%" to center the text properly */}
                         <Reveal width="100%">
                             <div className="flex flex-col items-center">
                                 <h2 className="text-3xl font-bold text-slate-800 mb-4">Our Team</h2>
@@ -117,19 +106,14 @@ export default function AboutPage() {
                         </Reveal>
                     </div>
 
-                    {/* FIX 2: Switched to Flex + Wrap + Center
-                       This ensures that if you have 5 people, the bottom 2 are centered.
-                    */}
+                    {/* FLEX GRID for centering odd numbers of items */}
                     <div className="flex flex-wrap justify-center gap-8">
                         {teamMembers.map((member, idx) => (
                             <div key={idx} className="w-full md:w-[calc(33.333%-1.5rem)] min-w-[300px] max-w-sm">
                                 <Reveal delay={idx * 0.1}>
                                     <div className="group bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-md transition-all h-full flex flex-col">
 
-                                        {/* FIX 3: Aspect Ratio 3:4 (Portrait)
-                                           Instead of fixed height (h-72), we use aspect-[3/4].
-                                           This matches the shape of a portrait photo so it doesn't zoom in/crop the face.
-                                        */}
+                                        {/* Aspect Ratio 3:4 (Portrait) */}
                                         <div className="relative aspect-[3/4] w-full bg-slate-200 overflow-hidden">
                                             <Image
                                                 src={member.image}
