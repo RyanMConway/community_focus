@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { useUser } from '@clerk/nextjs';
-import { Mail, Building2, Trash2, CheckCircle, Plus, BookOpen, Upload, FileText, Loader, Filter, ShieldAlert, ExternalLink } from 'lucide-react';
+import {
+    Mail, Building2, Trash2, CheckCircle, Plus, BookOpen,
+    Upload, FileText, Loader, Filter, ShieldAlert, BarChart3,
+    TrendingUp, MessageSquare, AlertCircle
+} from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 // --- CONFIGURATION ---
@@ -42,15 +46,24 @@ interface Document {
     created_at: string;
 }
 
+interface AnalyticsData {
+    total: number;
+    categories: { category: string; count: number }[];
+    topics: { topic: string; category: string; count: number }[];
+    communities: { name: string; count: number }[];
+    feed: { id: number; topic: string; category: string; created_at: string; community_name: string }[];
+}
+
 export default function AdminDashboard() {
     const { user, isLoaded } = useUser();
     const router = useRouter();
-    const [activeTab, setActiveTab] = useState<'inbox' | 'communities' | 'knowledge'>('inbox');
+    const [activeTab, setActiveTab] = useState<'inbox' | 'communities' | 'knowledge' | 'analytics'>('inbox');
 
     // Data State
     const [messages, setMessages] = useState<Message[]>([]);
     const [communities, setCommunities] = useState<Community[]>([]);
     const [documents, setDocuments] = useState<Document[]>([]);
+    const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
     const [loading, setLoading] = useState(true);
 
     // Form State for Communities
@@ -72,6 +85,13 @@ export default function AdminDashboard() {
         }
     }, [isLoaded, user]);
 
+    // Load Data based on active tab to save bandwidth
+    useEffect(() => {
+        if (activeTab === 'analytics' && !analytics) {
+            fetchAnalytics();
+        }
+    }, [activeTab]);
+
     const loadData = async () => {
         try {
             const [msgData, commData, docData] = await Promise.all([
@@ -86,6 +106,16 @@ export default function AdminDashboard() {
             console.error("Load failed", e);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchAnalytics = async () => {
+        try {
+            const res = await fetch('/api/admin/analytics?range=30d');
+            const data = await res.json();
+            setAnalytics(data);
+        } catch (e) {
+            console.error("Analytics fetch failed", e);
         }
     };
 
@@ -117,6 +147,26 @@ export default function AdminDashboard() {
             </div>
         );
     }
+
+    // --- HELPER: Simple Bar Chart Component ---
+    const SimpleBarChart = ({ data, total }: { data: { label: string, value: number, color?: string }[], total: number }) => (
+        <div className="space-y-3">
+            {data.map((item, i) => (
+                <div key={i}>
+                    <div className="flex justify-between text-sm mb-1">
+                        <span className="font-medium text-slate-700">{item.label}</span>
+                        <span className="text-slate-500">{item.value} ({Math.round((item.value / total) * 100)}%)</span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                        <div
+                            className={`h-2.5 rounded-full ${item.color || 'bg-brand'}`}
+                            style={{ width: `${(item.value / total) * 100}%` }}
+                        ></div>
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
 
     // --- DATA ACTIONS ---
     const handleAddCommunity = async (e: React.FormEvent) => {
@@ -155,7 +205,6 @@ export default function AdminDashboard() {
         await fetch(`/api/admin/messages/${id}`, { method: 'DELETE' });
     };
 
-    // --- "Clean Sweep" Delete Function ---
     const handleDeleteDocument = async (filename: string, communityId: number) => {
         if (!confirm(`Permanently delete "${filename}"? This will remove it from the website, storage, and AI.`)) return;
 
@@ -189,6 +238,9 @@ export default function AdminDashboard() {
                         </button>
                         <button onClick={() => setActiveTab('knowledge')} className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'knowledge' ? 'bg-white text-brand-dark shadow-sm' : 'text-slate-300 hover:text-white'}`}>
                             <BookOpen className="w-4 h-4" /> Knowledge Base
+                        </button>
+                        <button onClick={() => setActiveTab('analytics')} className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'analytics' ? 'bg-white text-brand-dark shadow-sm' : 'text-slate-300 hover:text-white'}`}>
+                            <BarChart3 className="w-4 h-4" /> Analytics
                         </button>
                     </div>
                 </div>
@@ -265,12 +317,9 @@ export default function AdminDashboard() {
                 {/* === TAB 3: KNOWLEDGE BASE === */}
                 {activeTab === 'knowledge' && (
                     <div className="space-y-6">
-                        {/* Header & Filter Card */}
                         <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
                             <h2 className="text-lg font-bold text-slate-800 mb-4">Knowledge Base Manager</h2>
-
                             <div className="flex flex-col md:flex-row gap-4 items-end justify-between">
-                                {/* Filter Dropdown */}
                                 <div className="w-full md:w-1/2">
                                     <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Filter by Community</label>
                                     <div className="relative">
@@ -287,8 +336,6 @@ export default function AdminDashboard() {
                                         <Filter className="w-4 h-4 text-slate-400 absolute right-3 top-3.5 pointer-events-none" />
                                     </div>
                                 </div>
-
-                                {/* Upload Button (Link) */}
                                 <div className="w-full md:w-auto">
                                     <button
                                         onClick={() => router.push('/admin/upload')}
@@ -301,7 +348,6 @@ export default function AdminDashboard() {
                             </div>
                         </div>
 
-                        {/* Document List */}
                         <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
                             <div className="p-6 border-b border-slate-100 flex justify-between items-center">
                                 <h2 className="text-lg font-bold text-slate-800">
@@ -366,6 +412,128 @@ export default function AdminDashboard() {
                         </div>
                     </div>
                 )}
+
+                {/* === TAB 4: ANALYTICS === */}
+                {activeTab === 'analytics' && (
+                    <div className="space-y-8 animate-in fade-in duration-500">
+                        {!analytics ? (
+                            <div className="text-center py-20 bg-white rounded-xl border border-slate-100 shadow-sm">
+                                <Loader className="w-8 h-8 text-brand animate-spin mx-auto mb-4" />
+                                <p className="text-slate-500">Crunching the numbers...</p>
+                            </div>
+                        ) : (
+                            <>
+                                {/* Overview Cards */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+                                        <div className="flex items-center gap-3 mb-2">
+                                            <div className="p-2 bg-blue-50 text-brand rounded-lg"><MessageSquare className="w-5 h-5"/></div>
+                                            <h3 className="text-slate-500 font-medium text-sm uppercase tracking-wide">Total Queries (30d)</h3>
+                                        </div>
+                                        <p className="text-4xl font-bold text-slate-800">{analytics.total}</p>
+                                    </div>
+                                    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+                                        <div className="flex items-center gap-3 mb-2">
+                                            <div className="p-2 bg-orange-50 text-orange-600 rounded-lg"><AlertCircle className="w-5 h-5"/></div>
+                                            <h3 className="text-slate-500 font-medium text-sm uppercase tracking-wide">Top Complaint</h3>
+                                        </div>
+                                        <p className="text-2xl font-bold text-slate-800 truncate">
+                                            {analytics.topics[0]?.topic || "N/A"}
+                                        </p>
+                                        <p className="text-xs text-slate-400 mt-1">Most frequent issue detected</p>
+                                    </div>
+                                    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+                                        <div className="flex items-center gap-3 mb-2">
+                                            <div className="p-2 bg-green-50 text-green-600 rounded-lg"><TrendingUp className="w-5 h-5"/></div>
+                                            <h3 className="text-slate-500 font-medium text-sm uppercase tracking-wide">Most Active Community</h3>
+                                        </div>
+                                        <p className="text-2xl font-bold text-slate-800 truncate">
+                                            {analytics.communities[0]?.name || "N/A"}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                    {/* Category Breakdown */}
+                                    <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-100">
+                                        <h3 className="text-lg font-bold text-slate-800 mb-6">Inquiry Categories</h3>
+                                        <SimpleBarChart
+                                            total={analytics.total}
+                                            data={analytics.categories.map(c => ({
+                                                label: c.category,
+                                                value: parseInt(c.count as any),
+                                                color: c.category === 'Complaint' ? 'bg-red-500' : c.category === 'Maintenance' ? 'bg-orange-500' : 'bg-brand'
+                                            }))}
+                                        />
+                                    </div>
+
+                                    {/* Top Specific Topics */}
+                                    <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-100">
+                                        <h3 className="text-lg font-bold text-slate-800 mb-6">Top Specific Topics</h3>
+                                        <div className="space-y-4">
+                                            {analytics.topics.map((t, i) => (
+                                                <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                                                    <div className="flex items-center gap-3">
+                                                        <span className="font-mono text-slate-400 text-sm w-4">#{i+1}</span>
+                                                        <span className="font-bold text-slate-700">{t.topic}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className={`text-[10px] px-2 py-0.5 rounded-full uppercase font-bold tracking-wider ${
+                                                            t.category === 'Complaint' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'
+                                                        }`}>
+                                                            {t.category}
+                                                        </span>
+                                                        <span className="font-bold text-slate-900">{t.count}</span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Recent Live Feed */}
+                                <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+                                    <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+                                        <h3 className="text-lg font-bold text-slate-800">Recent Live Activity</h3>
+                                    </div>
+                                    <div className="max-h-[400px] overflow-y-auto">
+                                        <table className="w-full text-left">
+                                            <thead className="bg-slate-50 sticky top-0">
+                                            <tr>
+                                                <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Time</th>
+                                                <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Community</th>
+                                                <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Topic</th>
+                                                <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Category</th>
+                                            </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100">
+                                            {analytics.feed.map((item) => (
+                                                <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                                                    <td className="px-6 py-3 text-sm text-slate-400">
+                                                        {new Date(item.created_at).toLocaleDateString()} <span className="text-xs opacity-70">{new Date(item.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                                    </td>
+                                                    <td className="px-6 py-3 text-sm font-medium text-slate-700">{item.community_name}</td>
+                                                    <td className="px-6 py-3 text-sm text-slate-600">{item.topic}</td>
+                                                    <td className="px-6 py-3">
+                                                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                                                                item.category === 'Complaint' ? 'bg-red-50 text-red-700 ring-1 ring-red-600/10' :
+                                                                    item.category === 'Maintenance' ? 'bg-orange-50 text-orange-700 ring-1 ring-orange-600/10' :
+                                                                        'bg-blue-50 text-blue-700 ring-1 ring-blue-700/10'
+                                                            }`}>
+                                                                {item.category}
+                                                            </span>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                )}
+
             </div>
         </div>
     );
