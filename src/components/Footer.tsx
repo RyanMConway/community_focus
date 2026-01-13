@@ -6,23 +6,26 @@ export default function Footer() {
     return (
         <footer className="relative mt-32 bg-slate-900 pt-20 text-slate-300">
 
-            {/* --- NEW: Floating CTA Card --- */}
-            <div className="absolute -top-24 left-0 w-full px-4">
+            {/* --- FLOATING CTA CARD --- */}
+            <div className="absolute -top-20 left-0 w-full px-4"> {/* Adjusted top position for smaller height */}
                 <div className="container mx-auto">
-                    <div className="relative overflow-hidden rounded-3xl bg-brand p-8 md:p-12 shadow-2xl shadow-brand/40 flex flex-col md:flex-row items-center justify-between gap-8">
+                    <div className="relative overflow-hidden rounded-3xl bg-brand p-6 md:p-8 shadow-2xl shadow-brand/40 flex flex-col md:flex-row items-center justify-between gap-6">
+
                         {/* Background Pattern on Card */}
                         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
 
                         <div className="relative z-10">
-                            <h2 className="text-2xl md:text-3xl font-serif font-bold text-white mb-2">
+                            <h2 className="text-2xl font-serif font-bold text-white mb-1">
                                 Ready to upgrade your community?
                             </h2>
-                            <p className="text-blue-100 text-lg">
+                            <p className="text-blue-100 text-base">
                                 Let's discuss how we can bring transparency to your board.
                             </p>
                         </div>
+
                         <div className="relative z-10 flex-shrink-0">
-                            <ShinyButton href="/contact" className="bg-white text-brand hover:bg-blue-50 border-transparent shadow-lg">
+                            {/* Uses the new 'secondary' variant for perfect blue text */}
+                            <ShinyButton href="/contact" variant="secondary" className="shadow-lg py-3 px-6 text-sm">
                                 Get a Proposal <ArrowRight className="w-4 h-4 ml-2" />
                             </ShinyButton>
                         </div>
@@ -33,7 +36,7 @@ export default function Footer() {
             {/* Background Pattern */}
             <div className="absolute inset-0 opacity-5 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#ffffff 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
 
-            <div className="container mx-auto px-4 pb-16 pt-16 relative z-10">
+            <div className="container mx-auto px-4 pb-16 pt-12 relative z-10"> {/* Reduced pt-16 to pt-12 */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
 
                     {/* Brand Column */}
