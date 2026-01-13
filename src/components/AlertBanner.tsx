@@ -1,3 +1,5 @@
+"use client"; // <--- This line was missing
+
 import { AlertTriangle, Info, AlertCircle, X } from 'lucide-react';
 import { useState } from 'react';
 
