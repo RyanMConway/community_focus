@@ -67,10 +67,9 @@ export async function POST(request: Request) {
         // --- FIX: Default Fallbacks to prevent crashes ---
         const safeCategory = analysis.category || "General";
         const safeTopic = analysis.topic || "General Query";
-        const safeSearchQuery = analysis.search_query || message; // Use user message if AI fails to generate query
+        const safeSearchQuery = analysis.search_query || message;
 
         // --- STEP 2.5: LOG ANALYTICS (Async) ---
-        // We use the 'safe' variables here to prevent DB Not-Null errors
         pool.query(
             `INSERT INTO chat_analytics (community_id, category, topic) 
              SELECT id, $1, $2 FROM communities WHERE name = $3`,
@@ -81,27 +80,35 @@ export async function POST(request: Request) {
         // --- STEP 3: DATA FETCHING (Parallel) ---
         const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
 
-        const [embeddingResult, managerRes, filesRes] = await Promise.all([
-            // A. Get Embeddings (Using safeSearchQuery)
-            embeddingModel.embedContent(safeSearchQuery),
+        // Improve keyword search: Split keywords to allow broader matches (e.g. "ARC Form" -> "ARC" OR "Form")
+        const searchTerms = (analysis.document_keywords || safeTopic).split(" ").filter((w: string) => w.length > 2);
+        const fileSearchQuery = `
+            SELECT title, file_url 
+            FROM community_downloads cd
+            JOIN communities c ON cd.community_id = c.id
+            WHERE c.name = $1 
+            AND (
+                title ILIKE $2 OR category ILIKE $2 
+                ${searchTerms.length > 0 ? `OR title ILIKE $3` : ''}
+            )
+            LIMIT 5
+        `;
 
-            // B. Get Manager Info
+        const fileParams = [
+            communityName,
+            `%${analysis.document_keywords || safeTopic}%`,
+            ...(searchTerms.length > 0 ? [`%${searchTerms[0]}%`] : [])
+        ];
+
+        const [embeddingResult, managerRes, filesRes] = await Promise.all([
+            embeddingModel.embedContent(safeSearchQuery),
             pool.query(`
                 SELECT m.name, m.email, m.phone 
                 FROM managers m 
                 JOIN communities c ON c.manager_id = m.id 
                 WHERE c.name = $1
             `, [communityName]),
-
-            // C. Search for Downloadable Files
-            pool.query(`
-                SELECT title, file_url 
-                FROM community_downloads cd
-                JOIN communities c ON cd.community_id = c.id
-                WHERE c.name = $1 
-                AND (title ILIKE $2 OR category ILIKE $2)
-                LIMIT 3
-            `, [communityName, `%${analysis.document_keywords || safeTopic}%`])
+            pool.query(fileSearchQuery, fileParams)
         ]);
 
         const embedding = embeddingResult.embedding.values;
@@ -123,6 +130,7 @@ export async function POST(request: Request) {
         // --- STEP 5: BUILD SYSTEM PROMPT ---
         const contextDocs = vectorRes.rows.map(r => r.content).join("\n\n");
         const fileLinks = foundFiles.map(f => `- [Download ${f.title}](${f.file_url})`).join("\n");
+        const hasFiles = foundFiles.length > 0;
 
         const chatModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
@@ -135,7 +143,7 @@ export async function POST(request: Request) {
         - Phone: ${manager.phone || OFFICE_PHONE}
 
         **AVAILABLE FILES (Use these links!):**
-        ${fileLinks || "No direct download links found."}
+        ${hasFiles ? fileLinks : "NO FILES FOUND IN DATABASE."}
 
         **KNOWLEDGE BASE:**
         ${contextDocs}
@@ -146,9 +154,10 @@ export async function POST(request: Request) {
            - Assure the user that Community Focus takes these issues seriously.
            - SUGGEST: "Please reach out to your Community Manager, ${manager.name}, directly at ${manager.email} or ${manager.phone} so we can address this privately."
 
-        2. **DOCUMENTS:** If the user wants a document and you see it in "AVAILABLE FILES" above:
-           - You MUST provide the Markdown link.
-           - Example: "You can download the bylaws here: [Download Bylaws](url)."
+        2. **DOCUMENTS:** If the user is asking for a document:
+           - **IF LINKS EXIST ABOVE:** You MUST provide the direct Markdown link. Example: "You can download it here: [Title](url)."
+           - **IF NO LINKS EXIST:** Be honest. Say "I don't have a digital copy of that specific document in my database yet. Please contact ${manager.email} to request a copy."
+           - **DO NOT** vaguely say "it is available in the information provided" if there is no link.
 
         3. **MAINTENANCE:** Direct to [Work Order Portal](${MASTER_WORK_ORDER_URL}).
 
