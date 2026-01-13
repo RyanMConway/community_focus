@@ -3,7 +3,6 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import pool from '@/lib/db';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-const GLOBAL_LAWS_COMMUNITY = "North Carolina General Statutes";
 
 // OFFICE FALLBACK
 const OFFICE_PHONE = "(919) 564-9134";
@@ -56,14 +55,26 @@ export async function POST(request: Request) {
         `;
 
         const analysisResult = await analyzerModel.generateContent(analyzerPrompt);
-        const analysis = JSON.parse(analysisResult.response.text());
-        console.log("Analysis:", analysis);
+        let analysis = JSON.parse(analysisResult.response.text());
+
+        // --- FIX: Handle Array vs Object response ---
+        if (Array.isArray(analysis)) {
+            analysis = analysis[0];
+        }
+
+        console.log("Analysis (Normalized):", analysis);
+
+        // --- FIX: Default Fallbacks to prevent crashes ---
+        const safeCategory = analysis.category || "General";
+        const safeTopic = analysis.topic || "General Query";
+        const safeSearchQuery = analysis.search_query || message; // Use user message if AI fails to generate query
 
         // --- STEP 2.5: LOG ANALYTICS (Async) ---
+        // We use the 'safe' variables here to prevent DB Not-Null errors
         pool.query(
             `INSERT INTO chat_analytics (community_id, category, topic) 
              SELECT id, $1, $2 FROM communities WHERE name = $3`,
-            [analysis.category, analysis.topic, communityName]
+            [safeCategory, safeTopic, communityName]
         ).catch(err => console.error("Analytics Log Error:", err));
 
 
@@ -71,8 +82,8 @@ export async function POST(request: Request) {
         const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
 
         const [embeddingResult, managerRes, filesRes] = await Promise.all([
-            // A. Get Embeddings for vector search
-            embeddingModel.embedContent(analysis.search_query),
+            // A. Get Embeddings (Using safeSearchQuery)
+            embeddingModel.embedContent(safeSearchQuery),
 
             // B. Get Manager Info
             pool.query(`
@@ -82,7 +93,7 @@ export async function POST(request: Request) {
                 WHERE c.name = $1
             `, [communityName]),
 
-            // C. Search for Downloadable Files (if category is Documents or General)
+            // C. Search for Downloadable Files
             pool.query(`
                 SELECT title, file_url 
                 FROM community_downloads cd
@@ -90,7 +101,7 @@ export async function POST(request: Request) {
                 WHERE c.name = $1 
                 AND (title ILIKE $2 OR category ILIKE $2)
                 LIMIT 3
-            `, [communityName, `%${analysis.document_keywords || analysis.topic}%`])
+            `, [communityName, `%${analysis.document_keywords || safeTopic}%`])
         ]);
 
         const embedding = embeddingResult.embedding.values;
