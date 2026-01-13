@@ -5,7 +5,7 @@ import pool from '@/lib/db';
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 const GLOBAL_LAWS_COMMUNITY = "North Carolina General Statutes";
 
-// DEFINED CONSTANTS - The Master Links
+// DEFINED CONSTANTS
 const MASTER_PORTAL_URL = "https://cfnc.cincwebaxis.com";
 const MASTER_WORK_ORDER_URL = "https://cfnc.cincwebaxis.com/workorders";
 const OFFICE_PHONE = "(919) 564-9134";
@@ -21,23 +21,20 @@ export async function POST(request: Request) {
 
         console.log(`\n--- NEW CHAT QUERY: "${message}" (Community: ${communityName}) ---`);
 
-        // --- STEP 1: CONSTRUCT HISTORY (THE FIX) ---
-        // We parse the existing history...
+        // --- STEP 1: CONSTRUCT HISTORY ---
         let historyLines = history
             ? history.map((h: any) => `${h.role === 'user' ? 'User' : 'Assistant'}: ${h.text}`)
             : [];
-
-        // ...AND we explicitly append the NEW message to the end.
         historyLines.push(`User: ${message}`);
-
         const historyText = historyLines.join('\n');
 
-        // --- STEP 2: CONTEXTUAL ANALYSIS ---
+        // --- STEP 2: CONTEXTUAL ANALYSIS (UPDATED FOR ANALYTICS) ---
         const analyzerModel = genAI.getGenerativeModel({
             model: "gemini-2.0-flash",
             generationConfig: { responseMimeType: "application/json" }
         });
 
+        // We ask Gemini to categorize the question while it analyzes it
         const analyzerPrompt = `
     You are a conversation analyzer for a Property Management AI.
     
@@ -48,14 +45,18 @@ export async function POST(request: Request) {
     
     **TASK:**
     1. Identify the User's **Role** (Homeowner, Tenant, Board Member). If unknown, assume "Homeowner".
-    2. Identify the User's **Core Question** (Focus on the last User message).
+    2. Identify the User's **Core Question**.
     3. Generate a **Search Query** for the database.
+    4. **Categorize** the question into EXACTLY one of these: ["Maintenance", "Documents", "Amenities", "Rules", "Billing", "Events", "General", "Complaint"].
+    5. Extract a short 2-5 word **Topic** (e.g., "Trash Pickup", "Pool Hours", "Noise Complaint", "ARC Request").
 
     **OUTPUT JSON:**
     {
       "user_role": "extracted role",
       "core_question": "The user's original question",
-      "search_query": "Query for the database"
+      "search_query": "Query for the database",
+      "category": "One of the allowed categories",
+      "topic": "Short topic summary"
     }
     `;
 
@@ -63,11 +64,19 @@ export async function POST(request: Request) {
         let rawAnalysis = JSON.parse(analysisResult.response.text());
         const analysis = Array.isArray(rawAnalysis) ? rawAnalysis[0] : rawAnalysis;
 
-        console.log("Analysis:", analysis);
+        console.log("Analysis & Categorization:", analysis);
+
+        // --- STEP 2.5: SAVE ANALYTICS (FIRE AND FORGET) ---
+        // We do not await this because we don't want to slow down the user's answer.
+        // We use a subquery to find the ID from the name.
+        pool.query(
+            `INSERT INTO chat_analytics (community_id, category, topic) 
+             SELECT id, $1, $2 FROM communities WHERE name = $3`,
+            [analysis.category, analysis.topic, communityName]
+        ).catch(err => console.error("Analytics Log Error:", err));
+
 
         // --- STEP 3: DATABASE SEARCH ---
-        console.log(`Searching DB for: "${analysis.search_query}"`);
-
         const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
         const embeddingResult = await embeddingModel.embedContent(analysis.search_query);
         const embedding = embeddingResult.embedding.values;
@@ -101,10 +110,6 @@ export async function POST(request: Request) {
             `[SOURCE: ${row.community_name}]\n${row.content}`
         ).join("\n\n");
 
-        if (allRows.length === 0) {
-            console.log("No documents found locally or globally.");
-        }
-
         // --- STEP 4: GENERATE ANSWER ---
         const chatModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
@@ -128,29 +133,12 @@ export async function POST(request: Request) {
       2. **Be Direct:** Answer the question first.
       3. **Use Source:** Only use the provided Official Documents.
       
-      **CRITICAL PROTOCOLS (READ CAREFULLY):**
-      
-      1. **MAINTENANCE & WORK ORDERS:**
-         If the user asks how to submit a work order, repair request, or fix something (non-emergency), reply:
-         "You can submit a maintenance request online through our portal: [Submit Work Order](${MASTER_WORK_ORDER_URL})"
-         
-      2. **ARCHITECTURAL REQUESTS (ARC/ACC):**
-         If the user wants to make a change to their home (fence, paint, addition), reply:
-         "You must submit an Architectural Request for review. You can do this easily through the Resident Portal: [Submit ARC Request](${MASTER_PORTAL_URL})"
-         
-      3. **CONTACT INFO:**
-         If asked for a phone number or email, provide the office info: ${OFFICE_PHONE} or ${OFFICE_EMAIL}.
-         
-      4. **SPECIFIC DATES / CALENDARS:**
-         Do NOT guess dates. Say:
-         "Please check the Calendar or News section of the Resident Portal for the most up-to-date schedules."
-      
-      5. **EMERGENCY ISSUES:**
-         If the issue is an **active emergency** (leak, fire, storm damage) AND the documents indicate it is the **HOA's responsibility**, append:
-         "\n\n🚨 **This appears to be an urgent HOA matter. Please submit an Emergency Work Order immediately:** [Submit Emergency Request](${MASTER_WORK_ORDER_URL})"
-      
-      6. **PAYMENTS:**
-         For payments/balances: [Resident Portal](${MASTER_PORTAL_URL})
+      **CRITICAL PROTOCOLS:**
+      1. **MAINTENANCE:** Direct to [Submit Work Order](${MASTER_WORK_ORDER_URL}).
+      2. **ARC REQUESTS:** Direct to [Submit ARC Request](${MASTER_PORTAL_URL}).
+      3. **CONTACT:** ${OFFICE_PHONE} or ${OFFICE_EMAIL}.
+      4. **EMERGENCY:** If urgent (fire/leak) and HOA responsibility, mention Emergency Work Order.
+      5. **PAYMENTS:** [Resident Portal](${MASTER_PORTAL_URL}).
     `;
 
         const finalResult = await chatModel.generateContent(answerPrompt);
