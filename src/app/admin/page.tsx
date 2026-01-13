@@ -11,12 +11,13 @@ import {
 import { useRouter } from 'next/navigation';
 
 // --- CONFIGURATION ---
+// Normalized allowlist
 const AUTHORIZED_EMAILS = [
     "amy@communityfocusnc.com",
     "rconwayak@gmail.com",
     "info@communityfocusnc.com",
     "rconway0825@gmail.com"
-];
+].map(e => e.toLowerCase().trim());
 
 // --- TYPES ---
 interface Message {
@@ -36,7 +37,6 @@ interface Community {
     city: string;
     portal_url: string;
     slug: string;
-    // New Fields
     alert_message?: string;
     alert_type?: 'info' | 'warning' | 'emergency';
 }
@@ -98,12 +98,21 @@ export default function AdminDashboard() {
     const [selectedCommId, setSelectedCommId] = useState<string>("");
     const [analyticsCommId, setAnalyticsCommId] = useState<string>("");
 
+    // --- UTILS: Normalize Email ---
+    const getNormalizedEmail = () => {
+        return user?.primaryEmailAddress?.emailAddress?.toLowerCase().trim() || "";
+    };
+
+    const isAuthorized = () => {
+        const email = getNormalizedEmail();
+        return email && AUTHORIZED_EMAILS.includes(email);
+    };
+
     // --- ACCESS CONTROL CHECK ---
     useEffect(() => {
         if (isLoaded && user) {
-            const email = user.primaryEmailAddress?.emailAddress;
-            if (email && !AUTHORIZED_EMAILS.includes(email)) {
-                // Optional: Redirect logic here
+            if (!isAuthorized()) {
+                // Not authorized, waiting for render to show "Access Denied"
             } else {
                 loadData();
             }
@@ -112,8 +121,8 @@ export default function AdminDashboard() {
 
     // Load Data based on active tab
     useEffect(() => {
-        if (activeTab === 'analytics') fetchAnalytics();
-        if (activeTab === 'managers') loadManagers();
+        if (activeTab === 'analytics' && isAuthorized()) fetchAnalytics();
+        if (activeTab === 'managers' && isAuthorized()) loadManagers();
     }, [activeTab, analyticsCommId]);
 
     const loadData = async () => {
@@ -150,21 +159,16 @@ export default function AdminDashboard() {
         }
     };
 
-    // --- ACTIONS: COMMUNITIES ---
+    // --- ACTIONS ---
     const handleSaveCommunity = async (e: React.FormEvent) => {
         e.preventDefault();
         const method = editingComm.id === 0 ? 'POST' : 'PUT';
-
         const res = await fetch('/api/admin/communities', {
             method: method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(editingComm)
         });
-
-        if (res.ok) {
-            loadData();
-            setIsCommModalOpen(false);
-        }
+        if (res.ok) { loadData(); setIsCommModalOpen(false); }
     };
 
     const handleDeleteCommunity = async (id: number) => {
@@ -173,57 +177,34 @@ export default function AdminDashboard() {
         setCommunities(prev => prev.filter(c => c.id !== id));
     };
 
-    // --- ACTIONS: MANAGERS ---
     const handleSaveManager = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!editingManager) return;
         const method = editingManager.id === 0 ? 'POST' : 'PUT';
-
         const form = e.target as HTMLFormElement;
         const selectedCommIds = Array.from(form.elements)
             .filter((el: any) => el.name === 'communities' && el.checked)
             .map((el: any) => parseInt(el.value));
-
         const payload = { ...editingManager, community_ids: selectedCommIds };
-
-        const res = await fetch('/api/admin/managers', {
-            method,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-
-        if (res.ok) {
-            loadManagers();
-            setIsManagerModalOpen(false);
-            setEditingManager(null);
-        }
+        const res = await fetch('/api/admin/managers', { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        if (res.ok) { loadManagers(); setIsManagerModalOpen(false); setEditingManager(null); }
     };
 
-    // --- ACTIONS: BRAIN SEARCH ---
     const handleBrainSearch = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsBrainSearching(true);
         try {
             const res = await fetch('/api/admin/brain', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query: brainQuery })
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: brainQuery })
             });
             const data = await res.json();
             setBrainResults(data.results || []);
-        } finally {
-            setIsBrainSearching(false);
-        }
+        } finally { setIsBrainSearching(false); }
     };
 
-    // --- GENERIC ACTIONS ---
     const handleMarkRead = async (id: number) => {
         setMessages(prev => prev.map(m => m.id === id ? { ...m, status: 'read' } : m));
-        await fetch(`/api/admin/messages/${id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: 'read' })
-        });
+        await fetch(`/api/admin/messages/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'read' }) });
     };
 
     const handleDeleteMessage = async (id: number) => {
@@ -276,10 +257,36 @@ export default function AdminDashboard() {
         </div>
     );
 
+    // --- RENDER ---
+
     if (!isLoaded) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader className="w-8 h-8 text-brand animate-spin" /></div>;
 
-    const userEmail = user?.primaryEmailAddress?.emailAddress;
-    if (!userEmail || !AUTHORIZED_EMAILS.includes(userEmail)) return <div>Access Denied</div>;
+    const userEmail = getNormalizedEmail();
+
+    // Explicit Debug Check
+    if (!isAuthorized()) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-6 text-center">
+                <div className="bg-red-50 p-6 rounded-2xl border border-red-100 max-w-md w-full">
+                    <ShieldAlert className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                    <h1 className="text-2xl font-bold text-red-700 mb-2">Access Denied</h1>
+                    <p className="text-red-600 mb-6">
+                        You are logged in as:<br/>
+                        <code className="bg-red-100 px-2 py-1 rounded text-sm font-mono mt-2 block">{userEmail}</code>
+                    </p>
+                    <p className="text-xs text-red-400 mb-6">
+                        Debug: Expected one of: {AUTHORIZED_EMAILS.join(", ")}
+                    </p>
+                    <button
+                        onClick={() => router.push('/')}
+                        className="bg-white border border-red-200 text-red-700 px-6 py-2 rounded-lg font-bold hover:bg-red-50 transition-colors"
+                    >
+                        Return Home
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     const filteredDocuments = selectedCommId ? documents.filter(d => d.community_id.toString() === selectedCommId) : [];
 
@@ -349,7 +356,7 @@ export default function AdminDashboard() {
                     </div>
                 )}
 
-                {/* TAB 2: COMMUNITIES (UPDATED WITH ALERTS & EDIT) */}
+                {/* TAB 2: COMMUNITIES */}
                 {activeTab === 'communities' && (
                     <div className="space-y-6">
                         <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
@@ -546,7 +553,7 @@ export default function AdminDashboard() {
                     </div>
                 )}
 
-                {/* TAB 4: BRAIN SEARCH (NEW) */}
+                {/* TAB 4: BRAIN SEARCH */}
                 {activeTab === 'brain' && (
                     <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-8 min-h-[600px]">
                         <div className="text-center max-w-2xl mx-auto mb-10">
@@ -600,7 +607,7 @@ export default function AdminDashboard() {
                     </div>
                 )}
 
-                {/* TAB 5: KNOWLEDGE (Existing code...) */}
+                {/* TAB 5: KNOWLEDGE */}
                 {activeTab === 'knowledge' && (
                     <div className="space-y-6">
                         <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
@@ -699,10 +706,10 @@ export default function AdminDashboard() {
                     </div>
                 )}
 
-                {/* TAB 6: ANALYTICS (Existing code...) */}
+                {/* TAB 6: ANALYTICS (UPDATED) */}
                 {activeTab === 'analytics' && (
                     <div className="space-y-8 animate-in fade-in duration-500">
-                        {/* Header & Controls */}
+                        {/* 1. Header & Controls */}
                         <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 flex flex-col md:flex-row justify-between items-center gap-6">
                             <div className="w-full md:w-1/3">
                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Filter Stats by Community</label>
@@ -816,6 +823,50 @@ export default function AdminDashboard() {
                                                 ))}
                                             </div>
                                         )}
+                                    </div>
+                                </div>
+
+                                {/* Recent Live Feed */}
+                                <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+                                    <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                                        <h3 className="text-lg font-bold text-slate-800">Recent Live Activity</h3>
+                                        <button onClick={fetchAnalytics} className="text-slate-400 hover:text-brand"><RefreshCw className="w-4 h-4"/></button>
+                                    </div>
+                                    <div className="max-h-[400px] overflow-y-auto">
+                                        <table className="w-full text-left">
+                                            <thead className="bg-slate-50 sticky top-0">
+                                            <tr>
+                                                <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Time</th>
+                                                <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Community</th>
+                                                <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Topic</th>
+                                                <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Category</th>
+                                            </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100">
+                                            {analytics.feed.length === 0 ? (
+                                                <tr><td colSpan={4} className="p-8 text-center text-slate-400">No activity recorded yet.</td></tr>
+                                            ) : (
+                                                analytics.feed.map((item) => (
+                                                    <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                                                        <td className="px-6 py-3 text-sm text-slate-400">
+                                                            {new Date(item.created_at).toLocaleDateString()} <span className="text-xs opacity-70">{new Date(item.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                                        </td>
+                                                        <td className="px-6 py-3 text-sm font-medium text-slate-700">{item.community_name}</td>
+                                                        <td className="px-6 py-3 text-sm text-slate-600">{item.topic}</td>
+                                                        <td className="px-6 py-3">
+                                                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                                                                    item.category === 'Complaint' ? 'bg-red-50 text-red-700 ring-1 ring-red-600/10' :
+                                                                        item.category === 'Maintenance' ? 'bg-orange-50 text-orange-700 ring-1 ring-orange-600/10' :
+                                                                            'bg-blue-50 text-blue-700 ring-1 ring-blue-700/10'
+                                                                }`}>
+                                                                    {item.category}
+                                                                </span>
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                            </tbody>
+                                        </table>
                                     </div>
                                 </div>
                             </>
