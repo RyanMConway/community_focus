@@ -4,7 +4,6 @@ import { createClient } from '@supabase/supabase-js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // --- CONFIG ---
-// Allow up to 60 seconds for Embedding/Uploads
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +16,6 @@ function smartChunking(text: string, chunkSize = 1000, overlap = 200): string[] 
     while (start < text.length) {
         let end = start + chunkSize;
         if (end < text.length) {
-            // Try to break at a period or newline
             const lastPeriod = text.lastIndexOf('.', end);
             const lastNewline = text.lastIndexOf('\n', end);
             const breakPoint = Math.max(lastPeriod, lastNewline);
@@ -33,7 +31,7 @@ function smartChunking(text: string, chunkSize = 1000, overlap = 200): string[] 
 
 // --- HELPER: Humanize Filenames ---
 function humanizeTitle(filename: string): string {
-    let clean = filename.replace(/\.(pdf|txt)$/i, ''); // Handle .pdf OR .txt
+    let clean = filename.replace(/\.(pdf|txt)$/i, '');
     clean = clean.replace(/[-_]/g, ' ');
     const noiseWords = [/HOA/gi, /Scan/gi, /Final/gi, /Version/gi, / v\d+/gi];
     noiseWords.forEach(regex => {
@@ -83,6 +81,7 @@ export async function POST(req: NextRequest) {
         const communitySlug = formData.get('communitySlug') as string;
         const customTitle = formData.get('customTitle') as string;
         const extractedText = formData.get('extractedText') as string;
+        const manualCategory = formData.get('category') as string; // <--- NEW FIELD
 
         if (!file || !communitySlug) {
             return NextResponse.json({ error: 'Missing file or community' }, { status: 400 });
@@ -96,30 +95,47 @@ export async function POST(req: NextRequest) {
             const communityId = commResult.rows[0].id;
             const communityName = commResult.rows[0].name;
 
-            // --- NAMING LOGIC ---
+            // --- NAMING & CATEGORY LOGIC ---
             let finalSlug = '';
             let finalTitle = '';
             let category = 'General';
             const extension = file.name.toLowerCase().endsWith('.txt') ? '.txt' : '.pdf';
 
+            // 1. Calculate Base Details (We need this for Slug/Title even if category is manual)
+            const smartDetails = getSmartDetails(file.name);
+
+            // 2. Determine Title & Slug
             if (customTitle && customTitle.trim()) {
+                // Manual Title Logic
                 finalTitle = customTitle.trim();
                 finalSlug = finalTitle.toLowerCase()
                         .replace(/[^a-z0-9]/g, '-')
                         .replace(/-+/g, '-')
                         .replace(/^-|-$/g, '')
                     + extension;
+            } else {
+                // Auto Title Logic
+                finalTitle = smartDetails.title;
+                finalSlug = smartDetails.slug;
+            }
 
+            // 3. Determine Category (Manual Override > Auto Detect)
+            if (manualCategory && manualCategory !== 'Auto') {
+                category = manualCategory;
+            } else if (customTitle) {
+                // If custom title but Auto category, try to guess from custom title
                 const lowerTitle = finalTitle.toLowerCase();
                 if (lowerTitle.includes('bylaw') || lowerTitle.includes('rule') || lowerTitle.includes('ccr') || lowerTitle.includes('declaration')) {
                     category = 'Governing';
                 } else if (lowerTitle.includes('form') || lowerTitle.includes('application')) {
                     category = 'Forms';
+                } else if (lowerTitle.includes('budget') || lowerTitle.includes('financial')) {
+                    category = 'Financials';
+                } else {
+                    category = smartDetails.category; // Fallback to filename guess
                 }
             } else {
-                const smartDetails = getSmartDetails(file.name);
-                finalSlug = smartDetails.slug;
-                finalTitle = smartDetails.title;
+                // Fully Auto
                 category = smartDetails.category;
             }
 
@@ -131,9 +147,9 @@ export async function POST(req: NextRequest) {
 
             while (!isUnique) {
                 const checkRes = await client.query(
-                    `SELECT id FROM community_downloads
-                     WHERE community_id = $1
-                       AND (title = $2 OR file_url LIKE $3)`,
+                    `SELECT id FROM community_downloads 
+                     WHERE community_id = $1 
+                     AND (title = $2 OR file_url LIKE $3)`,
                     [communityId, finalTitle, `%/${finalSlug}`]
                 );
 
@@ -151,8 +167,6 @@ export async function POST(req: NextRequest) {
             // --- 1. UPLOAD TO STORAGE ---
             const fileBuffer = await file.arrayBuffer();
             const buffer = Buffer.from(fileBuffer);
-
-            // Determine content type
             const mimeType = extension === '.txt' ? 'text/plain' : 'application/pdf';
 
             const { error: uploadError } = await supabase.storage
@@ -172,18 +186,14 @@ export async function POST(req: NextRequest) {
 
             // --- 3. AI CHUNKING & EMBEDDING ---
             const textToProcess = `[DOCUMENT: ${finalTitle} for ${communityName}]\n${extractedText || "(No text content)"}`;
-
-            // Chunk the text
             const chunks = smartChunking(textToProcess);
             console.log(`[AI] Processing ${chunks.length} chunks for ${finalSlug}`);
 
             const embedModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
             let insertedCount = 0;
 
-            // Loop through chunks and insert with embedding
             for (const chunk of chunks) {
                 try {
-                    // Generate Vector
                     const result = await embedModel.embedContent(chunk);
                     const embedding = result.embedding.values;
 
@@ -195,7 +205,6 @@ export async function POST(req: NextRequest) {
                     insertedCount++;
                 } catch (embedError) {
                     console.error(`[AI Error] Failed to embed chunk for ${finalSlug}`, embedError);
-                    // Continue to next chunk even if one fails
                 }
             }
 

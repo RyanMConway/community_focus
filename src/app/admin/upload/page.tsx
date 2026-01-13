@@ -8,6 +8,7 @@ export default function AdminUploadPage() {
     const [selectedSlug, setSelectedSlug] = useState('');
     const [file, setFile] = useState<File | null>(null);
     const [customTitle, setCustomTitle] = useState('');
+    const [category, setCategory] = useState('Auto'); // <--- NEW STATE
     const [status, setStatus] = useState<'idle' | 'parsing' | 'uploading' | 'success' | 'error'>('idle');
     const [message, setMessage] = useState('');
 
@@ -68,6 +69,7 @@ export default function AdminUploadPage() {
             formData.append('file', file);
             formData.append('communitySlug', selectedSlug);
             formData.append('extractedText', extractedText);
+            formData.append('category', category); // <--- SEND CATEGORY
             if (customTitle.trim()) formData.append('customTitle', customTitle.trim());
 
             const res = await fetch('/api/admin/upload', {
@@ -82,6 +84,7 @@ export default function AdminUploadPage() {
             setMessage(`Successfully uploaded: ${data.title}`);
             setFile(null);
             setCustomTitle('');
+            setCategory('Auto'); // Reset category
 
         } catch (error: any) {
             setStatus('error');
@@ -99,6 +102,7 @@ export default function AdminUploadPage() {
                     <h1 className="text-2xl font-bold text-slate-800">Upload Document</h1>
                 </div>
 
+                {/* 1. Community Select */}
                 <div className="mb-6">
                     <label className="block text-sm font-semibold text-slate-700 mb-2">Select Community</label>
                     <select
@@ -113,16 +117,34 @@ export default function AdminUploadPage() {
                     </select>
                 </div>
 
+                {/* 2. File Picker */}
                 <div className="mb-4">
                     <label className="block text-sm font-semibold text-slate-700 mb-2">Choose File (PDF or TXT)</label>
                     <input
                         type="file"
-                        accept=".pdf,.txt" // <--- Updated to allow TXT
+                        accept=".pdf,.txt"
                         onChange={(e) => setFile(e.target.files?.[0] || null)}
                         className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brand/10 file:text-brand hover:file:bg-brand/20"
                     />
                 </div>
 
+                {/* 3. Category Select (NEW) */}
+                <div className="mb-4">
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Category</label>
+                    <select
+                        className="w-full p-3 border border-slate-200 rounded-lg"
+                        onChange={(e) => setCategory(e.target.value)}
+                        value={category}
+                    >
+                        <option value="Auto">✨ Auto-Detect (Default)</option>
+                        <option value="Governing">Governing Documents</option>
+                        <option value="Forms">Forms & Applications</option>
+                        <option value="Financials">Financials & Budgets</option>
+                        <option value="General">General Information</option>
+                    </select>
+                </div>
+
+                {/* 4. Custom Title */}
                 <div className="mb-8">
                     <label className="block text-sm font-semibold text-slate-700 mb-2">
                         Custom Title <span className="text-slate-400 font-normal">(Optional)</span>
