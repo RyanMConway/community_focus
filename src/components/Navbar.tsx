@@ -10,6 +10,7 @@ const NAV_ITEMS = [
     { label: 'About Us', href: '/about' },
     { label: 'Communities', href: '/communities' },
     { label: 'Services', href: '/services' },
+    { label: 'Vendors', href: '/vendors' }, // <--- NEW LINK
     { label: 'Resources', href: '/resources' },
 ];
 
@@ -46,7 +47,7 @@ export default function Navbar() {
                 </Link>
 
                 {/* Desktop Navigation */}
-                <div className="hidden md:flex items-center gap-8">
+                <div className="hidden lg:flex items-center gap-8">
                     {NAV_ITEMS.map((item) => (
                         <Link
                             key={item.label}
@@ -66,7 +67,7 @@ export default function Navbar() {
 
                 {/* Mobile Menu Button */}
                 <button
-                    className={`md:hidden focus:outline-none ${scrolled ? 'text-slate-800' : 'text-slate-800 md:text-white'}`}
+                    className={`lg:hidden focus:outline-none ${scrolled ? 'text-slate-800' : 'text-slate-800 md:text-white'}`}
                     onClick={() => setIsOpen(!isOpen)}
                 >
                     {isOpen ? <X className="w-8 h-8" /> : <Menu className="w-8 h-8" />}
@@ -75,7 +76,7 @@ export default function Navbar() {
 
             {/* Mobile Menu Dropdown */}
             {isOpen && (
-                <div className="md:hidden bg-white border-t border-gray-100 absolute w-full shadow-lg h-screen top-20 left-0">
+                <div className="lg:hidden bg-white border-t border-gray-100 absolute w-full shadow-lg h-screen top-20 left-0">
                     <div className="flex flex-col p-6 space-y-6">
                         {NAV_ITEMS.map((item) => (
                             <Link
