@@ -11,13 +11,14 @@ const MASTER_WORK_ORDER_URL = "https://cfnc.cincwebaxis.com/workorders";
 
 export async function POST(request: Request) {
     try {
-        const { message, history, communityName } = await request.json();
+        // --- FIX 1: Accept 'communitySlug' instead of 'communityName' ---
+        const { message, history, communitySlug } = await request.json();
 
-        if (!message || !communityName) {
-            return NextResponse.json({ error: 'Message and Community required' }, { status: 400 });
+        if (!message || !communitySlug) {
+            return NextResponse.json({ error: 'Message and Community Slug required' }, { status: 400 });
         }
 
-        console.log(`\n--- NEW CHAT QUERY: "${message}" (Community: ${communityName}) ---`);
+        console.log(`\n--- NEW CHAT QUERY: "${message}" (Community Slug: ${communitySlug}) ---`);
 
         // --- STEP 1: CONSTRUCT HISTORY ---
         let historyLines = history
@@ -35,7 +36,7 @@ export async function POST(request: Request) {
         const analyzerPrompt = `
         You are a conversation analyzer.
         
-        **CONTEXT:** User is asking about "${communityName}".
+        **CONTEXT:** User is asking about the community with ID/Slug: "${communitySlug}".
         **HISTORY:** ${historyText}
 
         **TASK:**
@@ -57,36 +58,36 @@ export async function POST(request: Request) {
         const analysisResult = await analyzerModel.generateContent(analyzerPrompt);
         let analysis = JSON.parse(analysisResult.response.text());
 
-        // --- FIX: Handle Array vs Object response ---
         if (Array.isArray(analysis)) {
             analysis = analysis[0];
         }
 
         console.log("Analysis (Normalized):", analysis);
 
-        // --- FIX: Default Fallbacks to prevent crashes ---
         const safeCategory = analysis.category || "General";
         const safeTopic = analysis.topic || "General Query";
         const safeSearchQuery = analysis.search_query || message;
 
         // --- STEP 2.5: LOG ANALYTICS (Async) ---
+        // FIX: Look up community by SLUG
         pool.query(
-            `INSERT INTO chat_analytics (community_id, category, topic) 
-             SELECT id, $1, $2 FROM communities WHERE name = $3`,
-            [safeCategory, safeTopic, communityName]
+            `INSERT INTO chat_analytics (community_id, category, topic)
+             SELECT id, $1, $2 FROM communities WHERE slug = $3`,
+            [safeCategory, safeTopic, communitySlug]
         ).catch(err => console.error("Analytics Log Error:", err));
 
 
         // --- STEP 3: DATA FETCHING (Parallel) ---
         const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
 
-        // Improve keyword search: Split keywords to allow broader matches (e.g. "ARC Form" -> "ARC" OR "Form")
         const searchTerms = (analysis.document_keywords || safeTopic).split(" ").filter((w: string) => w.length > 2);
+
+        // FIX: Filter by c.slug instead of c.name
         const fileSearchQuery = `
             SELECT title, file_url 
             FROM community_downloads cd
             JOIN communities c ON cd.community_id = c.id
-            WHERE c.name = $1 
+            WHERE c.slug = $1 
             AND (
                 title ILIKE $2 OR category ILIKE $2 
                 ${searchTerms.length > 0 ? `OR title ILIKE $3` : ''}
@@ -95,19 +96,20 @@ export async function POST(request: Request) {
         `;
 
         const fileParams = [
-            communityName,
+            communitySlug,
             `%${analysis.document_keywords || safeTopic}%`,
             ...(searchTerms.length > 0 ? [`%${searchTerms[0]}%`] : [])
         ];
 
         const [embeddingResult, managerRes, filesRes] = await Promise.all([
             embeddingModel.embedContent(safeSearchQuery),
+            // FIX: Lookup manager by community slug
             pool.query(`
                 SELECT m.name, m.email, m.phone 
                 FROM managers m 
                 JOIN communities c ON c.manager_id = m.id 
-                WHERE c.name = $1
-            `, [communityName]),
+                WHERE c.slug = $1
+            `, [communitySlug]),
             pool.query(fileSearchQuery, fileParams)
         ]);
 
@@ -116,14 +118,15 @@ export async function POST(request: Request) {
         const foundFiles = filesRes.rows;
 
         // --- STEP 4: VECTOR SEARCH (Knowledge Base) ---
+        // FIX: Lookup docs by community slug
         const vectorQuery = pool.query(
             `SELECT cd.content, c.name as community_name
              FROM community_docs cd
                       JOIN communities c ON cd.community_id = c.id
-             WHERE c.name = $1
+             WHERE c.slug = $1
              ORDER BY (cd.embedding <=> $2::vector) ASC
                  LIMIT 6`,
-            [communityName, JSON.stringify(embedding)]
+            [communitySlug, JSON.stringify(embedding)]
         );
         const vectorRes = await vectorQuery;
 
@@ -131,11 +134,13 @@ export async function POST(request: Request) {
         const contextDocs = vectorRes.rows.map(r => r.content).join("\n\n");
         const fileLinks = foundFiles.map(f => `- [Download ${f.title}](${f.file_url})`).join("\n");
         const hasFiles = foundFiles.length > 0;
+        // Use the actual community name from the DB result if available, otherwise fallback to slug
+        const displayCommName = vectorRes.rows[0]?.community_name || communitySlug;
 
         const chatModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
         const systemPrompt = `
-        You are the Community Focus Assistant.
+        You are the Community Focus Assistant for ${displayCommName}.
         
         **MANAGER CONTACT:**
         - Name: ${manager.name}
