@@ -10,15 +10,6 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
-// --- CONFIGURATION ---
-// Normalized allowlist
-const AUTHORIZED_EMAILS = [
-    "amy@communityfocusnc.com",
-    "rconwayak@gmail.com",
-    "info@communityfocusnc.com",
-    "rconway0825@gmail.com"
-].map(e => e.toLowerCase().trim());
-
 // --- TYPES ---
 interface Message {
     id: number;
@@ -71,6 +62,9 @@ export default function AdminDashboard() {
     const router = useRouter();
     const [activeTab, setActiveTab] = useState<'inbox' | 'communities' | 'managers' | 'knowledge' | 'analytics' | 'brain'>('inbox');
 
+    // Auth State
+    const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
+
     // Data State
     const [messages, setMessages] = useState<Message[]>([]);
     const [communities, setCommunities] = useState<Community[]>([]);
@@ -98,32 +92,34 @@ export default function AdminDashboard() {
     const [selectedCommId, setSelectedCommId] = useState<string>("");
     const [analyticsCommId, setAnalyticsCommId] = useState<string>("");
 
-    // --- UTILS: Normalize Email ---
-    const getNormalizedEmail = () => {
-        return user?.primaryEmailAddress?.emailAddress?.toLowerCase().trim() || "";
-    };
-
-    const isAuthorized = () => {
-        const email = getNormalizedEmail();
-        return email && AUTHORIZED_EMAILS.includes(email);
-    };
-
-    // --- ACCESS CONTROL CHECK ---
+    // --- ACCESS CONTROL CHECK (DB DRIVEN) ---
     useEffect(() => {
         if (isLoaded && user) {
-            if (!isAuthorized()) {
-                // Not authorized, waiting for render to show "Access Denied"
-            } else {
-                loadData();
-            }
+            // Check against API
+            fetch('/api/auth/me')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.authorized) {
+                        setIsAuthorized(true);
+                        loadData(); // Load data only if authorized
+                    } else {
+                        setIsAuthorized(false);
+                        setLoading(false);
+                    }
+                })
+                .catch(err => {
+                    console.error("Auth check failed", err);
+                    setIsAuthorized(false);
+                    setLoading(false);
+                });
         }
     }, [isLoaded, user]);
 
     // Load Data based on active tab
     useEffect(() => {
-        if (activeTab === 'analytics' && isAuthorized()) fetchAnalytics();
-        if (activeTab === 'managers' && isAuthorized()) loadManagers();
-    }, [activeTab, analyticsCommId]);
+        if (activeTab === 'analytics' && isAuthorized) fetchAnalytics();
+        if (activeTab === 'managers' && isAuthorized) loadManagers();
+    }, [activeTab, analyticsCommId, isAuthorized]);
 
     const loadData = async () => {
         try {
@@ -259,12 +255,12 @@ export default function AdminDashboard() {
 
     // --- RENDER ---
 
-    if (!isLoaded) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader className="w-8 h-8 text-brand animate-spin" /></div>;
+    if (!isLoaded || loading) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader className="w-8 h-8 text-brand animate-spin" /></div>;
 
-    const userEmail = getNormalizedEmail();
+    const userEmail = user?.primaryEmailAddress?.emailAddress;
 
-    // Explicit Debug Check
-    if (!isAuthorized()) {
+    // Unauthorized View
+    if (isAuthorized === false) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-6 text-center">
                 <div className="bg-red-50 p-6 rounded-2xl border border-red-100 max-w-md w-full">
@@ -275,7 +271,7 @@ export default function AdminDashboard() {
                         <code className="bg-red-100 px-2 py-1 rounded text-sm font-mono mt-2 block">{userEmail}</code>
                     </p>
                     <p className="text-xs text-red-400 mb-6">
-                        Debug: Expected one of: {AUTHORIZED_EMAILS.join(", ")}
+                        If you believe this is an error, please contact IT.
                     </p>
                     <button
                         onClick={() => router.push('/')}
