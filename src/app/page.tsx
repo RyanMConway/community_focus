@@ -5,6 +5,7 @@ import ShinyButton from "@/components/ShinyButton";
 import Testimonials from "@/components/Testimonials";
 import FAQ from "@/components/FAQ";
 import pool from '@/lib/db';
+import { getGoogleReviews } from '@/lib/google-reviews';
 
 async function getFeaturedCommunities() {
   const client = await pool.connect();
@@ -18,6 +19,7 @@ async function getFeaturedCommunities() {
 
 export default async function Home() {
   const communities = await getFeaturedCommunities();
+  const reviews = await getGoogleReviews();
 
   return (
       <main className="min-h-screen bg-slate-50 selection:bg-brand selection:text-white">
@@ -147,7 +149,7 @@ export default async function Home() {
                 </Reveal>
               </div>
               <Reveal delay={0.2}>
-                <Testimonials />
+                <Testimonials reviews={reviews} />
               </Reveal>
             </div>
           </div>
