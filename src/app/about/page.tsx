@@ -1,36 +1,84 @@
 import Image from 'next/image';
-import { Mail, Shield, Users, Heart } from 'lucide-react';
+import { Mail, Phone, Shield, Users, Heart } from 'lucide-react'; // Added Phone icon
 import Reveal from '@/components/Reveal';
+
+// Helper to get initials for placeholder
+const getInitials = (name: string) => {
+    return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+};
 
 const teamMembers = [
     {
-        name: "Robin Conway",
-        title: "VP of Association Services",
-        image: "/team/robin-conway.jpg",
-        bio: "Dedicated to building strong community relationships and ensuring transparent management for all our associations.",
-        email: "rconway@communityfocusnc.com"
-    },
-    {
         name: "Josh Lindgren",
-        title: "Owner",
+        title: "President",
         image: "/team/josh-lindgren.jpg",
         bio: "Expert in property maintenance and vendor coordination, ensuring that your community always looks its best.",
-        email: "jlindgren@communityfocusnc.com"
+        email: "Josh@communityfocusnc.com",
+        phone: "(919) 564-9134 ext. 101"
     },
     {
         name: "Madison Kichline",
-        title: "VP of Operations",
+        title: "Vice President of Operations",
         image: "/team/madison.png",
-        bio: "Madison brings a wealth of operational expertise to the team. Full bio coming soon...",
-        email: "mkichline@communityfocusnc.com"
+        bio: "Madison brings a wealth of operational expertise to the team, overseeing day-to-day excellence.",
+        email: "Madison@communityfocusNC.com",
+        phone: "(919) 564-9134 ext. 102"
+    },
+    {
+        name: "Robin Conway",
+        title: "Vice President Association Services",
+        image: "/team/robin-conway.jpg",
+        bio: "Dedicated to building strong community relationships and ensuring transparent management for all our associations.",
+        email: "robin@communityfocusnc.com",
+        phone: "(919) 564-9134 ext. 104"
+    },
+    {
+        name: "Amy Ghiloni",
+        title: "Community Association Manager",
+        image: null, // Placeholder will be used
+        bio: " dedicated to supporting board members and homeowners with clear communication.",
+        email: "Amy@CommunityFocusNC.com",
+        phone: "(919) 564-9134 ext. 109"
+    },
+    {
+        name: "Wade Womble",
+        title: "Community Association Manager",
+        image: null,
+        bio: "Focused on efficient community management and solving complex association challenges.",
+        email: "Wade@CommunityFocusNC.com",
+        phone: "(919) 564-9134 ext. 108"
+    },
+    {
+        name: "Lisa Austin",
+        title: "Association Services",
+        image: null,
+        bio: "Providing essential support to ensure our communities run smoothly.",
+        email: "Lisa@CommunityFocusNC.com",
+        phone: "(919) 564-9134 ext. 106"
+    },
+    {
+        name: "Tracy Lynn",
+        title: "Compliance Manager",
+        image: null,
+        bio: "Ensuring community standards are met with fairness and consistency.",
+        email: "Tracy@CommunityFocusNC.com",
+        phone: null // Phone not yet assigned
+    },
+    {
+        name: "Tristan McInturff",
+        title: "On-Site Inspections / Compliance",
+        image: null,
+        bio: "Conducting thorough on-site inspections to maintain community value.",
+        email: "Tristan@CommunityFocusNC.com",
+        phone: null // Phone not yet assigned
     },
 ];
 
 export default function AboutPage() {
     return (
-        <main className="min-h-screen bg-slate-50 pb-20"> {/* REMOVED pt-24 */}
+        <main className="min-h-screen bg-slate-50 pb-20">
 
-            {/* HEADER: Added pt-32 so it sits behind the navbar */}
+            {/* HEADER */}
             <div className="bg-brand-dark text-white pt-32 pb-20 px-6 relative overflow-hidden mb-20">
                 <div className="max-w-4xl mx-auto text-center relative z-10">
                     <Reveal width="100%">
@@ -98,24 +146,48 @@ export default function AboutPage() {
                             <div key={idx} className="w-full md:w-[calc(33.333%-1.5rem)] min-w-[300px] max-w-sm">
                                 <Reveal delay={idx * 0.1}>
                                     <div className="group bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-md transition-all h-full flex flex-col">
-                                        <div className="relative aspect-[3/4] w-full bg-slate-200 overflow-hidden">
-                                            <Image
-                                                src={member.image}
-                                                alt={member.name}
-                                                fill
-                                                className="object-cover object-top group-hover:scale-105 transition-transform duration-500"
-                                            />
+
+                                        {/* Image or Placeholder Area */}
+                                        <div className="relative aspect-[3/4] w-full bg-slate-100 overflow-hidden flex items-center justify-center">
+                                            {member.image ? (
+                                                <Image
+                                                    src={member.image}
+                                                    alt={member.name}
+                                                    fill
+                                                    className="object-cover object-top group-hover:scale-105 transition-transform duration-500"
+                                                />
+                                            ) : (
+                                                <div className="flex flex-col items-center justify-center text-slate-300">
+                                                    <div className="w-24 h-24 rounded-full bg-slate-200 flex items-center justify-center mb-2">
+                                                        <span className="text-2xl font-bold text-slate-400 tracking-wider">
+                                                            {getInitials(member.name)}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
+
                                         <div className="p-6 flex-1 flex flex-col text-center">
                                             <h3 className="text-xl font-bold text-slate-800 mb-1">{member.name}</h3>
-                                            <p className="text-brand font-medium text-sm mb-4">{member.title}</p>
-                                            <p className="text-slate-600 text-sm leading-relaxed mb-6 flex-1">
+                                            <p className="text-brand font-medium text-sm mb-4 h-10 flex items-center justify-center">{member.title}</p>
+
+                                            <p className="text-slate-600 text-sm leading-relaxed mb-6 flex-1 line-clamp-3">
                                                 {member.bio}
                                             </p>
-                                            <a href={`mailto:${member.email}`} className="inline-flex items-center justify-center text-slate-400 hover:text-brand transition-colors text-sm font-medium mt-auto mx-auto">
-                                                <Mail className="w-4 h-4 mr-2" />
-                                                Email {member.name.split(' ')[0]}
-                                            </a>
+
+                                            <div className="mt-auto space-y-2 w-full">
+                                                <a href={`mailto:${member.email}`} className="flex items-center justify-center text-slate-500 hover:text-brand transition-colors text-sm font-medium p-2 rounded-lg hover:bg-slate-50">
+                                                    <Mail className="w-4 h-4 mr-2" />
+                                                    {member.email.split('@')[0]}
+                                                </a>
+
+                                                {member.phone && (
+                                                    <div className="flex items-center justify-center text-slate-500 text-sm font-medium p-2">
+                                                        <Phone className="w-4 h-4 mr-2 text-slate-400" />
+                                                        {member.phone}
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 </Reveal>
