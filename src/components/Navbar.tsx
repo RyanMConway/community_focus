@@ -46,17 +46,25 @@ export default function Navbar() {
             <div className="container mx-auto px-4 h-20 flex items-center justify-between">
 
                 {/* LOGO AREA */}
-                <Link href="/" onClick={closeMenu} className="relative h-10 w-48 flex items-center">
+                <Link href="/" onClick={closeMenu} className="relative h-12 w-48 flex items-center">
                     <Image
-                        src="/logo.jpg"  // <--- Make sure this matches your file name in /public
+                        src="/logo.png"
                         alt="Community Focus"
                         width={180}
-                        height={50}
-                        className={`object-contain object-left transition-all duration-300 ${
-                            // If we are on the transparent background, make the logo WHITE
-                            showSolidNav ? '' : 'brightness-0 invert opacity-90'
-                        }`}
+                        height={60}
                         priority
+                        className={`object-contain object-left transition-all duration-300
+                            ${showSolidNav
+                            // Case 1: White Navbar (Scrolled)
+                            // "multiply" makes the white background transparent so only dark text shows
+                            ? 'mix-blend-multiply opacity-100'
+
+                            // Case 2: Blue/Transparent Navbar (Top of Home)
+                            // "invert" turns black text white and white background black.
+                            // "screen" then makes the black background transparent.
+                            : 'invert mix-blend-screen opacity-90'
+                        }
+                        `}
                     />
                 </Link>
 
