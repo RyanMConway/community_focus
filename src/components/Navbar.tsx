@@ -45,24 +45,37 @@ export default function Navbar() {
         >
             <div className="container mx-auto px-4 h-20 flex items-center justify-between">
 
-                {/* LOGO AREA - Updated to "Badge" Style */}
-                <Link href="/" onClick={closeMenu} className="relative z-50">
-                    <div className={`
-                        relative h-12 w-48 flex items-center justify-center px-4 rounded-xl transition-all duration-300
-                        ${showSolidNav
-                        ? '' // Scrolled: Blend in with the white navbar
-                        : 'bg-white shadow-lg shadow-blue-900/10' // Top: Pop out as a white badge
-                    }
+                {/* LOGO AREA - Hybrid Switcher */}
+                <Link href="/" onClick={closeMenu} className="relative h-10 w-auto min-w-[200px] flex items-center group">
+
+                    {/* STATE 1: Logo Image (Visible ONLY when Scrolled/White BG) */}
+                    {/* The white background of the JPG/PNG will blend with the white navbar. */}
+                    <div className={`absolute left-0 top-1/2 -translate-y-1/2 transition-all duration-300 origin-left
+                        ${showSolidNav ? 'opacity-100 scale-100 visible' : 'opacity-0 scale-95 invisible'}
                     `}>
                         <Image
                             src="/logo.jpg"
                             alt="Community Focus"
-                            width={160}
-                            height={45}
+                            width={180}
+                            height={50}
+                            className="h-10 w-auto object-contain object-left"
                             priority
-                            className="object-contain" // Keep original colors, no filters
                         />
                     </div>
+
+                    {/* STATE 2: Text Brand (Visible ONLY when Transparent/Blue BG) */}
+                    {/* This ensures no "White Box" boxiness on the blue hero. */}
+                    <div className={`absolute left-0 top-1/2 -translate-y-1/2 flex items-center gap-3 transition-all duration-300 origin-left
+                        ${showSolidNav ? 'opacity-0 scale-95 invisible' : 'opacity-100 scale-100 visible'}
+                    `}>
+                        <div className="bg-white/15 backdrop-blur-md p-2 rounded-lg border border-white/20 shadow-sm group-hover:bg-white/25 transition-colors">
+                            <span className="font-bold text-white text-lg leading-none tracking-tight">CF</span>
+                        </div>
+                        <span className="text-xl font-serif font-bold text-white tracking-wide drop-shadow-sm whitespace-nowrap">
+                            Community Focus
+                        </span>
+                    </div>
+
                 </Link>
 
                 {/* Desktop Navigation */}
@@ -96,7 +109,7 @@ export default function Navbar() {
             {/* Mobile Menu Dropdown */}
             {isOpen && (
                 <div className="lg:hidden bg-white border-t border-gray-100 absolute w-full shadow-lg h-screen top-20 left-0">
-                    <div className="flex flex-col p-6 space-y-6 pt-24"> {/* Added padding top for logo clearance */}
+                    <div className="flex flex-col p-6 space-y-6 pt-12">
                         {NAV_ITEMS.map((item) => (
                             <Link
                                 key={item.label}
