@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation'; // <--- NEW IMPORT
 import { Menu, X } from 'lucide-react';
 import ShinyButton from './ShinyButton';
 
@@ -12,12 +13,16 @@ const NAV_ITEMS = [
     { label: 'Services', href: '/services' },
     { label: 'Vendors', href: '/vendors' },
     { label: 'Resources', href: '/resources' },
-    { label: 'Reviews', href: '/reviews' }, // <--- NEW LINK ADDED
+    { label: 'Reviews', href: '/reviews' },
 ];
 
 export default function Navbar() {
     const [isOpen, setIsOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
+    const pathname = usePathname(); // <--- Get current route
+
+    // Check if we are on the homepage
+    const isHomePage = pathname === '/';
 
     useEffect(() => {
         const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -27,11 +32,15 @@ export default function Navbar() {
 
     const closeMenu = () => setIsOpen(false);
 
+    // Dynamic Classes based on Route and Scroll State
+    // If NOT home page, we always want the "scrolled" look (white bg, dark text)
+    const showSolidNav = scrolled || !isHomePage;
+
     return (
         <nav
             className={`fixed w-full top-0 z-50 transition-all duration-300 
-            ${scrolled
-                ? 'bg-white/80 backdrop-blur-md border-b border-slate-200/50 shadow-sm'
+            ${showSolidNav
+                ? 'bg-white/90 backdrop-blur-md border-b border-slate-200/50 shadow-sm'
                 : 'bg-transparent border-b border-transparent'
             }`}
         >
@@ -42,33 +51,36 @@ export default function Navbar() {
                     <div className="bg-brand text-white p-2 rounded-xl font-bold text-xl shadow-lg shadow-brand/20 group-hover:scale-105 transition-transform">
                         CF
                     </div>
-                    <span className={`text-xl font-serif font-bold tracking-tight transition-colors ${scrolled ? 'text-slate-800' : 'text-slate-800 md:text-white'}`}>
+                    <span className={`text-xl font-serif font-bold tracking-tight transition-colors 
+                        ${showSolidNav ? 'text-slate-800' : 'text-slate-800 md:text-white'}
+                    `}>
                         Community Focus
                     </span>
                 </Link>
 
                 {/* Desktop Navigation */}
-                <div className="hidden lg:flex items-center gap-8">
+                {/* CHANGED: Reduced gap-8 to gap-5, and added text-sm to fit more items */}
+                <div className="hidden lg:flex items-center gap-5 xl:gap-8">
                     {NAV_ITEMS.map((item) => (
                         <Link
                             key={item.label}
                             href={item.href}
-                            className={`font-medium transition-colors text-[15px] hover:text-brand-accent
-                                ${scrolled ? 'text-slate-600' : 'text-slate-200'}
+                            className={`font-medium transition-colors text-sm hover:text-brand-accent
+                                ${showSolidNav ? 'text-slate-600' : 'text-slate-200'}
                             `}
                         >
                             {item.label}
                         </Link>
                     ))}
 
-                    <ShinyButton href="/contact" className="py-2.5 px-6 text-sm">
+                    <ShinyButton href="/contact" className="py-2.5 px-5 text-sm">
                         Contact Us
                     </ShinyButton>
                 </div>
 
                 {/* Mobile Menu Button */}
                 <button
-                    className={`lg:hidden focus:outline-none ${scrolled ? 'text-slate-800' : 'text-slate-800 md:text-white'}`}
+                    className={`lg:hidden focus:outline-none ${showSolidNav ? 'text-slate-800' : 'text-slate-800 md:text-white'}`}
                     onClick={() => setIsOpen(!isOpen)}
                 >
                     {isOpen ? <X className="w-8 h-8" /> : <Menu className="w-8 h-8" />}
