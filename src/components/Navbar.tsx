@@ -45,27 +45,24 @@ export default function Navbar() {
         >
             <div className="container mx-auto px-4 h-20 flex items-center justify-between">
 
-                {/* LOGO AREA */}
-                <Link href="/" onClick={closeMenu} className="relative h-12 w-48 flex items-center">
-                    <Image
-                        src="/logo.jpg"
-                        alt="Community Focus"
-                        width={180}
-                        height={60}
-                        priority
-                        className={`object-contain object-left transition-all duration-300
-                            ${showSolidNav
-                            // Case 1: White Navbar (Scrolled)
-                            // "multiply" makes the white background transparent so only dark text shows
-                            ? 'mix-blend-multiply opacity-100'
-
-                            // Case 2: Blue/Transparent Navbar (Top of Home)
-                            // "invert" turns black text white and white background black.
-                            // "screen" then makes the black background transparent.
-                            : 'invert mix-blend-screen opacity-90'
-                        }
-                        `}
-                    />
+                {/* LOGO AREA - Updated to "Badge" Style */}
+                <Link href="/" onClick={closeMenu} className="relative z-50">
+                    <div className={`
+                        relative h-12 w-48 flex items-center justify-center px-4 rounded-xl transition-all duration-300
+                        ${showSolidNav
+                        ? '' // Scrolled: Blend in with the white navbar
+                        : 'bg-white shadow-lg shadow-blue-900/10' // Top: Pop out as a white badge
+                    }
+                    `}>
+                        <Image
+                            src="/logo.png"
+                            alt="Community Focus"
+                            width={160}
+                            height={45}
+                            priority
+                            className="object-contain" // Keep original colors, no filters
+                        />
+                    </div>
                 </Link>
 
                 {/* Desktop Navigation */}
@@ -99,7 +96,7 @@ export default function Navbar() {
             {/* Mobile Menu Dropdown */}
             {isOpen && (
                 <div className="lg:hidden bg-white border-t border-gray-100 absolute w-full shadow-lg h-screen top-20 left-0">
-                    <div className="flex flex-col p-6 space-y-6">
+                    <div className="flex flex-col p-6 space-y-6 pt-24"> {/* Added padding top for logo clearance */}
                         {NAV_ITEMS.map((item) => (
                             <Link
                                 key={item.label}
