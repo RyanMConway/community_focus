@@ -10,8 +10,9 @@ const NAV_ITEMS = [
     { label: 'About Us', href: '/about' },
     { label: 'Communities', href: '/communities' },
     { label: 'Services', href: '/services' },
-    { label: 'Vendors', href: '/vendors' }, // <--- NEW LINK
+    { label: 'Vendors', href: '/vendors' },
     { label: 'Resources', href: '/resources' },
+    { label: 'Reviews', href: '/reviews' }, // <--- NEW LINK ADDED
 ];
 
 export default function Navbar() {

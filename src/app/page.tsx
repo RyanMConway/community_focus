@@ -139,7 +139,7 @@ export default async function Home() {
             </div>
           </div>
 
-          {/* TESTIMONIALS SECTION - With Background */}
+          {/* TESTIMONIALS SECTION */}
           <div className="mb-24 py-20 -mx-4 bg-slate-100/50 border-y border-slate-200/60">
             <div className="container mx-auto px-4">
               <div className="text-center mb-12">
@@ -148,9 +148,25 @@ export default async function Home() {
                   <p className="text-slate-500 mt-2">Hear from the board members we work with every day.</p>
                 </Reveal>
               </div>
+
+              {/* Reviews Slider */}
               <Reveal delay={0.2}>
                 <Testimonials reviews={reviews} />
               </Reveal>
+
+              {/* NEW: See All Reviews Button */}
+              <Reveal delay={0.3}>
+                <div className="flex justify-center mt-12">
+                  <Link
+                      href="/reviews"
+                      className="group inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white border border-slate-200 text-slate-600 font-semibold hover:border-brand hover:text-brand transition-all shadow-sm hover:shadow-md"
+                  >
+                    See All Reviews
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </Link>
+                </div>
+              </Reveal>
+
             </div>
           </div>
 
