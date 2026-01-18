@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation'; // <--- NEW IMPORT
+import Image from 'next/image';
+import { usePathname } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
 import ShinyButton from './ShinyButton';
 
@@ -19,9 +20,8 @@ const NAV_ITEMS = [
 export default function Navbar() {
     const [isOpen, setIsOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
-    const pathname = usePathname(); // <--- Get current route
+    const pathname = usePathname();
 
-    // Check if we are on the homepage
     const isHomePage = pathname === '/';
 
     useEffect(() => {
@@ -32,34 +32,35 @@ export default function Navbar() {
 
     const closeMenu = () => setIsOpen(false);
 
-    // Dynamic Classes based on Route and Scroll State
-    // If NOT home page, we always want the "scrolled" look (white bg, dark text)
+    // Logic: Show solid (white) nav if scrolled OR if not on the home page
     const showSolidNav = scrolled || !isHomePage;
 
     return (
         <nav
             className={`fixed w-full top-0 z-50 transition-all duration-300 
             ${showSolidNav
-                ? 'bg-white/90 backdrop-blur-md border-b border-slate-200/50 shadow-sm'
+                ? 'bg-white/95 backdrop-blur-md border-b border-slate-200/50 shadow-sm'
                 : 'bg-transparent border-b border-transparent'
             }`}
         >
             <div className="container mx-auto px-4 h-20 flex items-center justify-between">
 
-                {/* Logo Area */}
-                <Link href="/" onClick={closeMenu} className="flex items-center gap-2 group">
-                    <div className="bg-brand text-white p-2 rounded-xl font-bold text-xl shadow-lg shadow-brand/20 group-hover:scale-105 transition-transform">
-                        CF
-                    </div>
-                    <span className={`text-xl font-serif font-bold tracking-tight transition-colors 
-                        ${showSolidNav ? 'text-slate-800' : 'text-slate-800 md:text-white'}
-                    `}>
-                        Community Focus
-                    </span>
+                {/* LOGO AREA */}
+                <Link href="/" onClick={closeMenu} className="relative h-10 w-48 flex items-center">
+                    <Image
+                        src="/logo.png"  // <--- Make sure this matches your file name in /public
+                        alt="Community Focus"
+                        width={180}
+                        height={50}
+                        className={`object-contain object-left transition-all duration-300 ${
+                            // If we are on the transparent background, make the logo WHITE
+                            showSolidNav ? '' : 'brightness-0 invert opacity-90'
+                        }`}
+                        priority
+                    />
                 </Link>
 
                 {/* Desktop Navigation */}
-                {/* CHANGED: Reduced gap-8 to gap-5, and added text-sm to fit more items */}
                 <div className="hidden lg:flex items-center gap-5 xl:gap-8">
                     {NAV_ITEMS.map((item) => (
                         <Link
