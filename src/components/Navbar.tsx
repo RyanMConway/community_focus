@@ -48,7 +48,7 @@ export default function Navbar() {
                 {/* LOGO AREA */}
                 <Link href="/" onClick={closeMenu} className="relative h-12 w-48 flex items-center">
                     <Image
-                        src="/logo.png"
+                        src="/logo.jpg"
                         alt="Community Focus"
                         width={180}
                         height={60}
