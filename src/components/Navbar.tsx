@@ -55,7 +55,7 @@ export default function Navbar() {
                     }
                     `}>
                         <Image
-                            src="/logo.png"
+                            src="/logo.jpg"
                             alt="Community Focus"
                             width={160}
                             height={45}
