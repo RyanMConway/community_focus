@@ -48,7 +48,7 @@ export default function Navbar() {
                 {/* LOGO AREA */}
                 <Link href="/" onClick={closeMenu} className="relative h-10 w-48 flex items-center">
                     <Image
-                        src="/logo.png"  // <--- Make sure this matches your file name in /public
+                        src="/logo.jpg"  // <--- Make sure this matches your file name in /public
                         alt="Community Focus"
                         width={180}
                         height={50}
