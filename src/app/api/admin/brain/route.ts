@@ -11,10 +11,11 @@ export async function POST(request: Request) {
     if (!auth.authorized) return auth.response;
 
     try {
-        const { query, community_id } = await request.json(); // Accepted community_id
+        const { query, community_id } = await request.json();
         if (!query) return NextResponse.json({ error: "Query required" }, { status: 400 });
 
         // 2. Generate Embedding for the User's Question
+        // Note: 'text-embedding-004' is the correct modern embedding model
         const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
         const result = await embeddingModel.embedContent(query);
         const embedding = result.embedding.values;
@@ -24,7 +25,6 @@ export async function POST(request: Request) {
         let searchRes;
 
         try {
-            // IF community_id is provided, filter by it. ELSE, search everything.
             if (community_id && community_id !== "") {
                 searchRes = await client.query(
                     `SELECT cd.content, cd.filename, c.name as community_name, (cd.embedding <=> $1::vector) as distance
@@ -52,10 +52,10 @@ export async function POST(request: Request) {
         const sources = searchRes.rows;
 
         // 4. "RAG" - Generate a Natural Language Answer
-        // We feed the top 5 relevant snippets to the AI and ask it to synthesize an answer.
-        const generativeModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        // FIX: Changed model from "gemini-1.5-flash" to "gemini-1.5-flash-001"
+        const generativeModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash-001" });
 
-        const contextText = sources.map(s => `SOURCE (${s.filename}): ${s.content}`).join("\n\n");
+        const contextText = sources.map((s: any) => `SOURCE (${s.filename}): ${s.content}`).join("\n\n");
 
         const prompt = `
             You are an expert Community Association Manager assistant.
@@ -75,7 +75,6 @@ export async function POST(request: Request) {
         const answerResult = await generativeModel.generateContent(prompt);
         const finalAnswer = answerResult.response.text();
 
-        // Return both the natural answer AND the raw sources (for reference)
         return NextResponse.json({
             answer: finalAnswer,
             sources: sources
