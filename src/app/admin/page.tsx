@@ -6,9 +6,10 @@ import {
     Mail, Building2, Trash2, CheckCircle, Plus, BookOpen,
     Upload, FileText, Loader, Filter, ShieldAlert, BarChart3,
     TrendingUp, MessageSquare, AlertCircle, RefreshCw, Users, Briefcase,
-    BrainCircuit, Search, Edit2, Calendar, Megaphone, HardHat, Bot
+    BrainCircuit, Search, Edit2, Calendar, Megaphone, HardHat, Bot, Menu, X
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'react-hot-toast'; // NEW IMPORT
 
 // --- TYPES ---
 interface Message {
@@ -178,6 +179,7 @@ export default function AdminDashboard() {
             setDocuments(docData || []);
         } catch (e) {
             console.error("Load failed", e);
+            toast.error("Failed to load initial data");
         } finally {
             setLoading(false);
         }
@@ -199,40 +201,69 @@ export default function AdminDashboard() {
         }
     };
 
-    // --- ACTIONS ---
+    // --- GENERIC HELPERS (With Toasts) ---
     const handleSaveGeneric = async (url: string, data: any, refreshFn: () => void, modalSetter: (v: boolean) => void) => {
         const method = data.id === 0 ? 'POST' : 'PUT';
+        const loadToast = toast.loading("Saving...");
         try {
             const res = await fetch(url, {
                 method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
-            if (res.ok) { refreshFn(); modalSetter(false); }
-        } catch(e) { console.error(e); alert('Failed to save'); }
+            if (res.ok) {
+                refreshFn();
+                modalSetter(false);
+                toast.success("Saved successfully!", { id: loadToast });
+            } else {
+                toast.error("Failed to save.", { id: loadToast });
+            }
+        } catch(e) {
+            console.error(e);
+            toast.error("Network error occurred.", { id: loadToast });
+        }
     };
 
     const handleDeleteGeneric = async (url: string, id: number, refreshFn: () => void) => {
         if (!confirm('Are you sure?')) return;
-        await fetch(`${url}?id=${id}`, { method: 'DELETE' });
-        refreshFn();
+        const loadToast = toast.loading("Deleting...");
+        try {
+            const res = await fetch(`${url}?id=${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                refreshFn();
+                toast.success("Deleted!", { id: loadToast });
+            } else {
+                toast.error("Failed to delete.", { id: loadToast });
+            }
+        } catch (e) {
+            toast.error("Error occurred.", { id: loadToast });
+        }
     };
 
+    // --- SPECIFIC HANDLERS (With Toasts) ---
     const handleSaveCommunity = async (e: React.FormEvent) => {
         e.preventDefault();
         const method = editingComm.id === 0 ? 'POST' : 'PUT';
+        const loadToast = toast.loading("Saving community...");
         const res = await fetch('/api/admin/communities', {
             method: method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(editingComm)
         });
-        if (res.ok) { loadData(); setIsCommModalOpen(false); }
+        if (res.ok) {
+            loadData();
+            setIsCommModalOpen(false);
+            toast.success("Community saved!", { id: loadToast });
+        } else {
+            toast.error("Failed to save community.", { id: loadToast });
+        }
     };
 
     const handleDeleteCommunity = async (id: number) => {
         if (!confirm('Delete this community? This cannot be undone.')) return;
         await fetch(`/api/admin/communities?id=${id}`, { method: 'DELETE' });
         setCommunities(prev => prev.filter(c => c.id !== id));
+        toast.success("Community deleted.");
     };
 
     const handleSaveManager = async (e: React.FormEvent) => {
@@ -244,11 +275,19 @@ export default function AdminDashboard() {
             .filter((el: any) => el.name === 'communities' && el.checked)
             .map((el: any) => parseInt(el.value));
         const payload = { ...editingManager, community_ids: selectedCommIds };
+
+        const loadToast = toast.loading("Saving manager...");
         const res = await fetch('/api/admin/managers', { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        if (res.ok) { loadManagers(); setIsManagerModalOpen(false); setEditingManager(null); }
+        if (res.ok) {
+            loadManagers();
+            setIsManagerModalOpen(false);
+            setEditingManager(null);
+            toast.success("Manager saved!", { id: loadToast });
+        } else {
+            toast.error("Failed to save manager.", { id: loadToast });
+        }
     };
 
-    // --- BRAIN SEARCH HANDLER ---
     const handleBrainSearch = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsBrainSearching(true);
@@ -259,14 +298,13 @@ export default function AdminDashboard() {
             const res = await fetch('/api/admin/brain', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                // Fix: Send the brainCommunityId filter to the API
                 body: JSON.stringify({ query: brainQuery, community_id: brainCommunityId })
             });
             const data = await res.json();
-
-            // Set both the Answer and the Sources
             setBrainAnswer(data.answer || "No answer generated.");
             setBrainResults(data.sources || []);
+        } catch(e) {
+            toast.error("Brain search failed.");
         } finally {
             setIsBrainSearching(false);
         }
@@ -275,18 +313,22 @@ export default function AdminDashboard() {
     const handleMarkRead = async (id: number) => {
         setMessages(prev => prev.map(m => m.id === id ? { ...m, status: 'read' } : m));
         await fetch(`/api/admin/messages/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'read' }) });
+        toast.success("Marked as read");
     };
 
     const handleDeleteMessage = async (id: number) => {
         if (!confirm('Delete message?')) return;
         setMessages(prev => prev.filter(m => m.id !== id));
         await fetch(`/api/admin/messages/${id}`, { method: 'DELETE' });
+        toast.success("Message deleted");
     };
 
     const handleDeleteDocument = async (filename: string, communityId: number) => {
         if (!confirm(`Permanently delete "${filename}"?`)) return;
+        const t = toast.loading("Deleting file...");
         await fetch(`/api/admin/documents?id=${encodeURIComponent(filename)}&communityId=${communityId}`, { method: 'DELETE' });
         loadData();
+        toast.success("File deleted", { id: t });
     };
 
     const handleClearAnalytics = async () => {
@@ -296,7 +338,8 @@ export default function AdminDashboard() {
             const query = analyticsCommId ? `?communityId=${analyticsCommId}` : '';
             await fetch(`/api/admin/analytics${query}`, { method: 'DELETE' });
             fetchAnalytics();
-        } catch (e) { alert("Failed"); }
+            toast.success("Analytics cleared");
+        } catch (e) { toast.error("Failed to clear analytics"); }
     };
 
     const handleExportCSV = () => {
@@ -309,6 +352,7 @@ export default function AdminDashboard() {
         link.href = URL.createObjectURL(blob);
         link.download = `report.csv`;
         link.click();
+        toast.success("Report downloaded");
     };
 
     const SimpleBarChart = ({ data, total }: { data: { label: string, value: number, color?: string }[], total: number }) => (
@@ -350,13 +394,13 @@ export default function AdminDashboard() {
         <div className="min-h-screen bg-slate-50 pb-20">
             {/* Top Navbar */}
             <div className="bg-brand-dark text-white pt-24 pb-20 px-8 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
                 <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-end relative z-10">
                     <div>
                         <h1 className="text-3xl font-serif font-bold mb-2">Admin Portal</h1>
-                        <p className="text-brand-accent/80">Manage messages, properties, and AI knowledge.</p>
+                        <p className="text-brand-accent/80">Manager Dashboard</p>
                     </div>
-                    <div className="flex gap-2 mt-6 md:mt-0 bg-white/10 p-1 rounded-lg backdrop-blur-sm overflow-x-auto max-w-full">
+                    {/* Scrollable Tabs for Mobile */}
+                    <div className="flex gap-2 mt-6 md:mt-0 bg-white/10 p-1 rounded-lg backdrop-blur-sm overflow-x-auto max-w-full no-scrollbar">
                          {[
                             { id: 'inbox', icon: Mail, label: 'Inbox' },
                             { id: 'communities', icon: Building2, label: 'Communities' },
@@ -365,7 +409,7 @@ export default function AdminDashboard() {
                             { id: 'vendors', icon: HardHat, label: 'Vendors' },
                             { id: 'managers', icon: Users, label: 'Managers' },
                             { id: 'brain', icon: BrainCircuit, label: 'Brain' },
-                            { id: 'knowledge', icon: BookOpen, label: 'Knowledge' },
+                            { id: 'knowledge', icon: BookOpen, label: 'Docs' }, // Shortened label
                             { id: 'analytics', icon: BarChart3, label: 'Stats' },
                         ].map((tab) => (
                              <button
@@ -386,7 +430,9 @@ export default function AdminDashboard() {
                 {activeTab === 'inbox' && (
                     <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
                         <div className="p-6 border-b border-slate-100"><h2 className="text-lg font-bold text-slate-800">Messages</h2></div>
-                        <table className="w-full text-left">
+
+                        {/* DESKTOP TABLE VIEW */}
+                        <table className="w-full text-left hidden md:table">
                             <thead className="bg-slate-50 border-b border-slate-100">
                             <tr>
                                 <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">From</th>
@@ -410,6 +456,25 @@ export default function AdminDashboard() {
                             ))}
                             </tbody>
                         </table>
+
+                        {/* MOBILE CARD VIEW */}
+                        <div className="md:hidden divide-y divide-slate-100">
+                            {messages.map((msg) => (
+                                <div key={msg.id} className={`p-4 ${msg.status === 'new' ? 'bg-white' : 'bg-slate-50/50'}`}>
+                                    <div className="flex justify-between items-start mb-2">
+                                        <div>
+                                            <div className="font-bold text-slate-900">{msg.first_name} {msg.last_name}</div>
+                                            <div className="text-xs text-slate-500">{msg.email}</div>
+                                        </div>
+                                        <div className="flex gap-1">
+                                            {msg.status === 'new' && <button onClick={() => handleMarkRead(msg.id)} className="text-emerald-500 p-2"><CheckCircle className="w-5 h-5"/></button>}
+                                            <button onClick={() => handleDeleteMessage(msg.id)} className="text-red-400 p-2"><Trash2 className="w-5 h-5"/></button>
+                                        </div>
+                                    </div>
+                                    <p className="text-sm text-slate-700">{msg.message}</p>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 )}
 
@@ -432,16 +497,16 @@ export default function AdminDashboard() {
 
                             <div className="grid gap-4">
                                 {communities.map((c) => (
-                                    <div key={c.id} className="flex justify-between p-4 border rounded bg-white items-center">
+                                    <div key={c.id} className="flex flex-col md:flex-row justify-between p-4 border rounded bg-white items-start md:items-center gap-4">
                                         <div>
-                                            <div className="font-bold text-slate-800 flex items-center gap-2">
+                                            <div className="font-bold text-slate-800 flex items-center gap-2 flex-wrap">
                                                 {c.name}
                                                 {c.alert_message && <span className="bg-amber-100 text-amber-700 text-[10px] px-2 py-0.5 rounded-full uppercase font-bold tracking-wider">Alert Active</span>}
                                             </div>
                                             {(c.alert_start_time || c.alert_end_time) && <div className="text-[10px] text-slate-400 mt-1">Scheduled Banner</div>}
                                             <div className="text-xs text-slate-500">{c.city}</div>
                                         </div>
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-2 self-end md:self-auto">
                                             <button
                                                 onClick={() => { setEditingComm(c); setIsCommModalOpen(true); }}
                                                 className="text-brand hover:bg-blue-50 p-2 rounded transition-colors"
@@ -666,13 +731,13 @@ export default function AdminDashboard() {
                         </div>
                         <div className="space-y-2">
                              {events.map(ev => (
-                                <div key={ev.id} className="border p-4 rounded-lg flex justify-between items-center bg-white">
+                                <div key={ev.id} className="border p-4 rounded-lg flex flex-col md:flex-row justify-between items-start md:items-center bg-white gap-2">
                                     <div>
                                         <span className="text-xs bg-slate-100 px-2 py-1 rounded text-slate-500 font-bold uppercase">{communities.find(c => c.id === ev.community_id)?.name}</span>
                                         <div className="font-bold mt-1">{ev.title}</div>
                                         <div className="text-sm text-slate-500">{ev.event_date} @ {ev.event_time}</div>
                                     </div>
-                                    <button onClick={() => handleDeleteGeneric('/api/admin/events', ev.id, loadEvents)} className="text-red-400 p-2"><Trash2 className="w-4 h-4"/></button>
+                                    <button onClick={() => handleDeleteGeneric('/api/admin/events', ev.id, loadEvents)} className="text-red-400 p-2 self-end md:self-auto"><Trash2 className="w-4 h-4"/></button>
                                 </div>
                              ))}
                         </div>
@@ -872,45 +937,77 @@ export default function AdminDashboard() {
                             </div>
 
                             {selectedCommId ? (
-                                <table className="w-full text-left">
-                                    <thead className="bg-slate-50 border-b border-slate-100">
-                                    <tr>
-                                        <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Document Name</th>
-                                        <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Knowledge Chunks</th>
-                                        <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase text-right">Actions</th>
-                                    </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-50">
-                                    {filteredDocuments.length === 0 ? (
+                                <>
+                                    {/* DESKTOP TABLE */}
+                                    <table className="w-full text-left hidden md:table">
+                                        <thead className="bg-slate-50 border-b border-slate-100">
                                         <tr>
-                                            <td colSpan={3} className="px-6 py-8 text-center text-slate-400 italic">No documents found for this community.</td>
+                                            <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Document Name</th>
+                                            <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase">Knowledge Chunks</th>
+                                            <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase text-right">Actions</th>
                                         </tr>
-                                    ) : (
-                                        filteredDocuments.map((doc, idx) => (
-                                            <tr key={doc.id + idx} className="hover:bg-slate-50">
-                                                <td className="px-6 py-4 font-medium text-slate-800 flex items-center gap-2">
-                                                    <FileText className="w-4 h-4 text-brand-accent" />
-                                                    {doc.filename}
-                                                </td>
-                                                <td className="px-6 py-4 text-sm text-slate-600">
-                                                        <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-xs font-bold">
-                                                            {doc.chunk_count}
-                                                        </span>
-                                                </td>
-                                                <td className="px-6 py-4 text-right">
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-50">
+                                        {filteredDocuments.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={3} className="px-6 py-8 text-center text-slate-400 italic">No documents found for this community.</td>
+                                            </tr>
+                                        ) : (
+                                            filteredDocuments.map((doc, idx) => (
+                                                <tr key={doc.id + idx} className="hover:bg-slate-50">
+                                                    <td className="px-6 py-4 font-medium text-slate-800 flex items-center gap-2">
+                                                        <FileText className="w-4 h-4 text-brand-accent" />
+                                                        {doc.filename}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-sm text-slate-600">
+                                                            <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-xs font-bold">
+                                                                {doc.chunk_count}
+                                                            </span>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-right">
+                                                        <button
+                                                            onClick={() => handleDeleteDocument(doc.filename, doc.community_id)}
+                                                            className="text-slate-300 hover:text-red-500 p-2 transition-colors"
+                                                            title="Delete File"
+                                                        >
+                                                            <Trash2 className="w-5 h-5" />
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                        </tbody>
+                                    </table>
+
+                                    {/* MOBILE CARD VIEW */}
+                                    <div className="md:hidden divide-y divide-slate-100">
+                                        {filteredDocuments.length === 0 ? (
+                                            <div className="p-8 text-center text-slate-400 italic">No documents found.</div>
+                                        ) : (
+                                            filteredDocuments.map((doc, idx) => (
+                                                <div key={doc.id + idx} className="p-4 flex justify-between items-center">
+                                                    <div className="overflow-hidden">
+                                                        <div className="font-bold text-slate-800 flex items-center gap-2 truncate">
+                                                            <FileText className="w-4 h-4 text-brand-accent flex-shrink-0" />
+                                                            <span className="truncate">{doc.filename}</span>
+                                                        </div>
+                                                        <div className="mt-1">
+                                                            <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                                                                {doc.chunk_count} chunks
+                                                            </span>
+                                                        </div>
+                                                    </div>
                                                     <button
                                                         onClick={() => handleDeleteDocument(doc.filename, doc.community_id)}
-                                                        className="text-slate-300 hover:text-red-500 p-2 transition-colors"
-                                                        title="Delete File"
+                                                        className="text-slate-300 hover:text-red-500 p-2"
                                                     >
                                                         <Trash2 className="w-5 h-5" />
                                                     </button>
-                                                </td>
-                                            </tr>
-                                        ))
-                                    )}
-                                    </tbody>
-                                </table>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                </>
                             ) : (
                                 <div className="p-12 text-center flex flex-col items-center justify-center text-slate-400">
                                     <Filter className="w-12 h-12 mb-4 text-slate-200" />
@@ -1049,7 +1146,8 @@ export default function AdminDashboard() {
                                         <button onClick={fetchAnalytics} className="text-slate-400 hover:text-brand"><RefreshCw className="w-4 h-4"/></button>
                                     </div>
                                     <div className="max-h-[400px] overflow-y-auto">
-                                        <table className="w-full text-left">
+                                        {/* DESKTOP TABLE */}
+                                        <table className="w-full text-left hidden md:table">
                                             <thead className="bg-slate-50 sticky top-0">
                                             <tr>
                                                 <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Time</th>
@@ -1083,6 +1181,30 @@ export default function AdminDashboard() {
                                             )}
                                             </tbody>
                                         </table>
+
+                                        {/* MOBILE LIST VIEW */}
+                                        <div className="md:hidden divide-y divide-slate-100">
+                                            {analytics.feed.length === 0 ? (
+                                                <div className="p-8 text-center text-slate-400">No activity recorded yet.</div>
+                                            ) : (
+                                                analytics.feed.map((item) => (
+                                                    <div key={item.id} className="p-4">
+                                                        <div className="flex justify-between items-start mb-1">
+                                                            <span className="font-bold text-slate-800 text-sm">{item.community_name}</span>
+                                                            <span className="text-xs text-slate-400">{new Date(item.created_at).toLocaleDateString()}</span>
+                                                        </div>
+                                                        <p className="text-sm text-slate-600 mb-2">{item.topic}</p>
+                                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                                                            item.category === 'Complaint' ? 'bg-red-50 text-red-700 ring-1 ring-red-600/10' :
+                                                                item.category === 'Maintenance' ? 'bg-orange-50 text-orange-700 ring-1 ring-orange-600/10' :
+                                                                    'bg-blue-50 text-blue-700 ring-1 ring-blue-700/10'
+                                                        }`}>
+                                                            {item.category}
+                                                        </span>
+                                                    </div>
+                                                ))
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             </>

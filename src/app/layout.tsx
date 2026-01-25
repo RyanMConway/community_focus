@@ -1,44 +1,45 @@
 import type { Metadata } from "next";
-import { ClerkProvider } from '@clerk/nextjs'; // <--- Keep Clerk
-import { Inter, Merriweather } from "next/font/google"; // <--- Use your original fonts
+import { Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
-import ChatWidget from "@/components/ChatWidget";
+import { ClerkProvider } from '@clerk/nextjs';
+import { Toaster } from 'react-hot-toast'; // IMPORTED
 
-// Setup Google Fonts
 const inter = Inter({ subsets: ["latin"], variable: '--font-inter' });
-const merriweather = Merriweather({
-    weight: ['400', '700'],
-    subsets: ["latin"],
-    variable: '--font-serif'
-});
+const playfair = Playfair_Display({ subsets: ["latin"], variable: '--font-playfair' });
 
 export const metadata: Metadata = {
-    title: "Community Focus of NC",
-    description: "Professional Association Management in North Carolina",
+  title: "Community Focus of NC",
+  description: "Premier Community Association Management in Durham, NC",
 };
 
 export default function RootLayout({
-                                       children,
-                                   }: Readonly<{
-    children: React.ReactNode;
+  children,
+}: Readonly<{
+  children: React.ReactNode;
 }>) {
-    return (
-        // Wrap the entire app in ClerkProvider
-        <ClerkProvider>
-            <html lang="en">
-            <body className={`${inter.variable} ${merriweather.variable} font-sans flex flex-col min-h-screen`}>
-            <Navbar />
-            <main className="flex-grow">
-                {children}
-            </main>
-            <Footer />
-
-            {/* Chat Widget */}
-            <ChatWidget />
-            </body>
-            </html>
-        </ClerkProvider>
-    );
+  return (
+    <ClerkProvider>
+      <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
+        <body className={inter.className}>
+          {/* TOASTER COMPONENT ADDED HERE */}
+          <Toaster
+            position="bottom-right"
+            toastOptions={{
+              style: {
+                background: '#1e293b',
+                color: '#fff',
+              },
+              success: {
+                iconTheme: {
+                  primary: '#10b981',
+                  secondary: 'white',
+                },
+              },
+            }}
+          />
+          {children}
+        </body>
+      </html>
+    </ClerkProvider>
+  );
 }
