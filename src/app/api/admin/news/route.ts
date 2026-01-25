@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
-import { checkAuth } from '@/lib/checkAuth';
+import { checkAdminAuth } from '@/lib/checkAuth';
 
 export async function GET() {
-    if (!await checkAuth()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const { authorized, response } = await checkAdminAuth();
+    if (!authorized) return response;
+
     const client = await pool.connect();
     try {
         const res = await client.query('SELECT * FROM community_news ORDER BY created_at DESC');
@@ -12,7 +14,9 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-    if (!await checkAuth()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const { authorized, response } = await checkAdminAuth();
+    if (!authorized) return response;
+
     const { community_id, title, content } = await req.json();
     const client = await pool.connect();
     try {
@@ -22,7 +26,9 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-    if (!await checkAuth()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const { authorized, response } = await checkAdminAuth();
+    if (!authorized) return response;
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
     const client = await pool.connect();
