@@ -1,17 +1,41 @@
-"use client"; // <--- This line was missing
+"use client";
 
 import { AlertTriangle, Info, AlertCircle, X } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface Props {
     message: string | null;
     type: string | null;
+    startTime?: string | null; // ISO Date string
+    endTime?: string | null;   // ISO Date string
 }
 
-export default function AlertBanner({ message, type }: Props) {
+export default function AlertBanner({ message, type, startTime, endTime }: Props) {
     const [isVisible, setIsVisible] = useState(true);
+    const [shouldRender, setShouldRender] = useState(false);
 
-    if (!message || !isVisible) return null;
+    useEffect(() => {
+        if (!message) {
+            setShouldRender(false);
+            return;
+        }
+
+        const now = new Date();
+        const start = startTime ? new Date(startTime) : null;
+        const end = endTime ? new Date(endTime) : null;
+
+        // Logic:
+        // 1. If no dates provided, show always (legacy behavior).
+        // 2. If start provided, must be after start.
+        // 3. If end provided, must be before end.
+        let isActive = true;
+        if (start && now < start) isActive = false;
+        if (end && now > end) isActive = false;
+
+        setShouldRender(isActive);
+    }, [message, startTime, endTime]);
+
+    if (!shouldRender || !isVisible) return null;
 
     const styles = {
         info: "bg-blue-600 text-white",
@@ -25,7 +49,6 @@ export default function AlertBanner({ message, type }: Props) {
         emergency: <AlertCircle className="w-5 h-5" />
     };
 
-    // Default to info if type is unknown
     const currentStyle = styles[type as keyof typeof styles] || styles.info;
     const currentIcon = icons[type as keyof typeof icons] || icons.info;
 

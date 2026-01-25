@@ -6,7 +6,7 @@ import {
     Mail, Building2, Trash2, CheckCircle, Plus, BookOpen,
     Upload, FileText, Loader, Filter, ShieldAlert, BarChart3,
     TrendingUp, MessageSquare, AlertCircle, RefreshCw, Users, Briefcase,
-    BrainCircuit, Search, Edit2
+    BrainCircuit, Search, Edit2, Calendar, Megaphone, HardHat
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -30,6 +30,33 @@ interface Community {
     slug: string;
     alert_message?: string;
     alert_type?: 'info' | 'warning' | 'emergency';
+    alert_start_time?: string; // New
+    alert_end_time?: string;   // New
+}
+
+interface Vendor { // New
+    id: number;
+    name: string;
+    specialty: string;
+    website_url: string;
+    active: boolean;
+}
+
+interface Event { // New
+    id: number;
+    community_id: number;
+    title: string;
+    event_date: string;
+    event_time: string;
+    location: string;
+}
+
+interface NewsPost { // New
+    id: number;
+    community_id: number;
+    title: string;
+    content: string;
+    created_at: string;
 }
 
 interface Manager {
@@ -60,7 +87,8 @@ interface AnalyticsData {
 export default function AdminDashboard() {
     const { user, isLoaded } = useUser();
     const router = useRouter();
-    const [activeTab, setActiveTab] = useState<'inbox' | 'communities' | 'managers' | 'knowledge' | 'analytics' | 'brain'>('inbox');
+    // Updated tabs list
+    const [activeTab, setActiveTab] = useState<'inbox' | 'communities' | 'managers' | 'vendors' | 'events' | 'news' | 'knowledge' | 'analytics' | 'brain'>('inbox');
 
     // Auth State
     const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
@@ -71,22 +99,39 @@ export default function AdminDashboard() {
     const [managers, setManagers] = useState<Manager[]>([]);
     const [documents, setDocuments] = useState<Document[]>([]);
     const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
+
+    // New Data State
+    const [vendors, setVendors] = useState<Vendor[]>([]);
+    const [events, setEvents] = useState<Event[]>([]);
+    const [news, setNews] = useState<NewsPost[]>([]);
+
     const [loading, setLoading] = useState(true);
 
     // -- STATE FOR COMMUNITIES --
     const [isCommModalOpen, setIsCommModalOpen] = useState(false);
     const [editingComm, setEditingComm] = useState<Community>({
-        id: 0, name: '', city: 'Durham, NC', portal_url: '', slug: '', alert_message: '', alert_type: 'info'
+        id: 0, name: '', city: 'Durham, NC', portal_url: '', slug: '', alert_message: '', alert_type: 'info', alert_start_time: '', alert_end_time: ''
     });
 
     // -- STATE FOR MANAGERS --
     const [isManagerModalOpen, setIsManagerModalOpen] = useState(false);
     const [editingManager, setEditingManager] = useState<Manager | null>(null);
 
+    // -- STATE FOR NEW FEATURES --
+    const [isVendorModalOpen, setIsVendorModalOpen] = useState(false);
+    const [editingVendor, setEditingVendor] = useState<Vendor>({ id: 0, name: '', specialty: '', website_url: '', active: true });
+
+    const [isEventModalOpen, setIsEventModalOpen] = useState(false);
+    const [editingEvent, setEditingEvent] = useState<Event>({ id: 0, community_id: 0, title: '', event_date: '', event_time: '', location: '' });
+
+    const [isNewsModalOpen, setIsNewsModalOpen] = useState(false);
+    const [editingNews, setEditingNews] = useState<NewsPost>({ id: 0, community_id: 0, title: '', content: '', created_at: '' });
+
     // -- STATE FOR BRAIN SEARCH --
     const [brainQuery, setBrainQuery] = useState("");
     const [brainResults, setBrainResults] = useState<any[]>([]);
     const [isBrainSearching, setIsBrainSearching] = useState(false);
+    const [brainCommunityId, setBrainCommunityId] = useState(""); // New Context
 
     // -- STATE FOR FILTERS --
     const [selectedCommId, setSelectedCommId] = useState<string>("");
@@ -95,13 +140,12 @@ export default function AdminDashboard() {
     // --- ACCESS CONTROL CHECK (DB DRIVEN) ---
     useEffect(() => {
         if (isLoaded && user) {
-            // Check against API
             fetch('/api/auth/me')
                 .then(res => res.json())
                 .then(data => {
                     if (data.authorized) {
                         setIsAuthorized(true);
-                        loadData(); // Load data only if authorized
+                        loadData();
                     } else {
                         setIsAuthorized(false);
                         setLoading(false);
@@ -119,6 +163,9 @@ export default function AdminDashboard() {
     useEffect(() => {
         if (activeTab === 'analytics' && isAuthorized) fetchAnalytics();
         if (activeTab === 'managers' && isAuthorized) loadManagers();
+        if (activeTab === 'vendors' && isAuthorized) loadVendors();
+        if (activeTab === 'events' && isAuthorized) loadEvents();
+        if (activeTab === 'news' && isAuthorized) loadNews();
     }, [activeTab, analyticsCommId, isAuthorized]);
 
     const loadData = async () => {
@@ -138,11 +185,10 @@ export default function AdminDashboard() {
         }
     };
 
-    const loadManagers = async () => {
-        const res = await fetch('/api/admin/managers');
-        const data = await res.json();
-        setManagers(data);
-    };
+    const loadManagers = async () => fetch('/api/admin/managers').then(res => res.json()).then(setManagers);
+    const loadVendors = async () => fetch('/api/admin/vendors').then(res => res.json()).then(setVendors).catch(() => setVendors([]));
+    const loadEvents = async () => fetch('/api/admin/events').then(res => res.json()).then(setEvents).catch(() => setEvents([]));
+    const loadNews = async () => fetch('/api/admin/news').then(res => res.json()).then(setNews).catch(() => setNews([]));
 
     const fetchAnalytics = async () => {
         try {
@@ -155,7 +201,26 @@ export default function AdminDashboard() {
         }
     };
 
-    // --- ACTIONS ---
+    // --- GENERIC HELPER FOR NEW FEATURES ---
+    const handleSaveGeneric = async (url: string, data: any, refreshFn: () => void, modalSetter: (v: boolean) => void) => {
+        const method = data.id === 0 ? 'POST' : 'PUT';
+        try {
+            const res = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            if (res.ok) { refreshFn(); modalSetter(false); }
+        } catch(e) { console.error(e); alert('Failed to save'); }
+    };
+
+    const handleDeleteGeneric = async (url: string, id: number, refreshFn: () => void) => {
+        if (!confirm('Are you sure?')) return;
+        await fetch(`${url}?id=${id}`, { method: 'DELETE' });
+        refreshFn();
+    };
+
+    // --- ACTIONS (Original) ---
     const handleSaveCommunity = async (e: React.FormEvent) => {
         e.preventDefault();
         const method = editingComm.id === 0 ? 'POST' : 'PUT';
@@ -191,7 +256,9 @@ export default function AdminDashboard() {
         setIsBrainSearching(true);
         try {
             const res = await fetch('/api/admin/brain', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: brainQuery })
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query: brainQuery, community_id: brainCommunityId }) // Updated
             });
             const data = await res.json();
             setBrainResults(data.results || []);
@@ -266,19 +333,8 @@ export default function AdminDashboard() {
                 <div className="bg-red-50 p-6 rounded-2xl border border-red-100 max-w-md w-full">
                     <ShieldAlert className="w-12 h-12 text-red-500 mx-auto mb-4" />
                     <h1 className="text-2xl font-bold text-red-700 mb-2">Access Denied</h1>
-                    <p className="text-red-600 mb-6">
-                        You are logged in as:<br/>
-                        <code className="bg-red-100 px-2 py-1 rounded text-sm font-mono mt-2 block">{userEmail}</code>
-                    </p>
-                    <p className="text-xs text-red-400 mb-6">
-                        If you believe this is an error, please contact IT.
-                    </p>
-                    <button
-                        onClick={() => router.push('/')}
-                        className="bg-white border border-red-200 text-red-700 px-6 py-2 rounded-lg font-bold hover:bg-red-50 transition-colors"
-                    >
-                        Return Home
-                    </button>
+                    <p className="text-red-600 mb-6">You are logged in as: <code className="bg-red-100 px-2 py-1 rounded text-sm font-mono">{userEmail}</code></p>
+                    <button onClick={() => router.push('/')} className="bg-white border border-red-200 text-red-700 px-6 py-2 rounded-lg font-bold hover:bg-red-50 transition-colors">Return Home</button>
                 </div>
             </div>
         );
@@ -297,24 +353,25 @@ export default function AdminDashboard() {
                         <p className="text-brand-accent/80">Manage messages, properties, and AI knowledge.</p>
                     </div>
                     <div className="flex gap-2 mt-6 md:mt-0 bg-white/10 p-1 rounded-lg backdrop-blur-sm overflow-x-auto max-w-full">
-                        <button onClick={() => setActiveTab('inbox')} className={`px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2 ${activeTab === 'inbox' ? 'bg-white text-brand-dark shadow-sm' : 'text-slate-300 hover:text-white'}`}>
-                            <Mail className="w-4 h-4" /> Inbox
-                        </button>
-                        <button onClick={() => setActiveTab('communities')} className={`px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2 ${activeTab === 'communities' ? 'bg-white text-brand-dark shadow-sm' : 'text-slate-300 hover:text-white'}`}>
-                            <Building2 className="w-4 h-4" /> Communities
-                        </button>
-                        <button onClick={() => setActiveTab('managers')} className={`px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2 ${activeTab === 'managers' ? 'bg-white text-brand-dark shadow-sm' : 'text-slate-300 hover:text-white'}`}>
-                            <Users className="w-4 h-4" /> Managers
-                        </button>
-                        <button onClick={() => setActiveTab('brain')} className={`px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2 ${activeTab === 'brain' ? 'bg-white text-brand-dark shadow-sm' : 'text-slate-300 hover:text-white'}`}>
-                            <BrainCircuit className="w-4 h-4" /> Brain
-                        </button>
-                        <button onClick={() => setActiveTab('knowledge')} className={`px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2 ${activeTab === 'knowledge' ? 'bg-white text-brand-dark shadow-sm' : 'text-slate-300 hover:text-white'}`}>
-                            <BookOpen className="w-4 h-4" /> Knowledge
-                        </button>
-                        <button onClick={() => setActiveTab('analytics')} className={`px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2 ${activeTab === 'analytics' ? 'bg-white text-brand-dark shadow-sm' : 'text-slate-300 hover:text-white'}`}>
-                            <BarChart3 className="w-4 h-4" /> Analytics
-                        </button>
+                         {[
+                            { id: 'inbox', icon: Mail, label: 'Inbox' },
+                            { id: 'communities', icon: Building2, label: 'Communities' },
+                            { id: 'events', icon: Calendar, label: 'Events' },
+                            { id: 'news', icon: Megaphone, label: 'News' },
+                            { id: 'vendors', icon: HardHat, label: 'Vendors' },
+                            { id: 'managers', icon: Users, label: 'Managers' },
+                            { id: 'brain', icon: BrainCircuit, label: 'Brain' },
+                            { id: 'knowledge', icon: BookOpen, label: 'Knowledge' },
+                            { id: 'analytics', icon: BarChart3, label: 'Stats' },
+                        ].map((tab) => (
+                             <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id as any)}
+                                className={`px-3 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2 ${activeTab === tab.id ? 'bg-white text-brand-dark shadow-sm' : 'text-slate-300 hover:text-white'}`}
+                            >
+                                <tab.icon className="w-4 h-4" /> {tab.label}
+                            </button>
+                        ))}
                     </div>
                 </div>
             </div>
@@ -352,7 +409,7 @@ export default function AdminDashboard() {
                     </div>
                 )}
 
-                {/* TAB 2: COMMUNITIES */}
+                {/* TAB 2: COMMUNITIES (UPDATED) */}
                 {activeTab === 'communities' && (
                     <div className="space-y-6">
                         <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
@@ -372,14 +429,13 @@ export default function AdminDashboard() {
                             <div className="grid gap-4">
                                 {communities.map((c) => (
                                     <div key={c.id} className="flex justify-between p-4 border rounded bg-white items-center">
-                                        <div className="flex items-center gap-4">
-                                            <div>
-                                                <div className="font-bold text-slate-800 flex items-center gap-2">
-                                                    {c.name}
-                                                    {c.alert_message && <span className="bg-amber-100 text-amber-700 text-[10px] px-2 py-0.5 rounded-full uppercase font-bold tracking-wider">Alert Active</span>}
-                                                </div>
-                                                <div className="text-xs text-slate-500">{c.city}</div>
+                                        <div>
+                                            <div className="font-bold text-slate-800 flex items-center gap-2">
+                                                {c.name}
+                                                {c.alert_message && <span className="bg-amber-100 text-amber-700 text-[10px] px-2 py-0.5 rounded-full uppercase font-bold tracking-wider">Alert Active</span>}
                                             </div>
+                                            {(c.alert_start_time || c.alert_end_time) && <div className="text-[10px] text-slate-400 mt-1">Scheduled Banner</div>}
+                                            <div className="text-xs text-slate-500">{c.city}</div>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <button
@@ -396,26 +452,27 @@ export default function AdminDashboard() {
                             </div>
                         </div>
 
-                        {/* COMMUNITY MODAL */}
+                        {/* COMMUNITY MODAL (UPDATED) */}
                         {isCommModalOpen && (
                             <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                                <div className="bg-white rounded-2xl w-full max-w-lg p-8 shadow-2xl">
+                                <div className="bg-white rounded-2xl w-full max-w-lg p-8 shadow-2xl max-h-[90vh] overflow-y-auto">
                                     <h3 className="text-xl font-bold mb-6">{editingComm.id === 0 ? 'Add Community' : 'Edit Community'}</h3>
                                     <form onSubmit={handleSaveCommunity} className="space-y-4">
                                         <input required placeholder="Name" className="w-full p-3 border rounded-lg" value={editingComm.name} onChange={e => setEditingComm({...editingComm, name: e.target.value})} />
                                         <input placeholder="City" className="w-full p-3 border rounded-lg" value={editingComm.city} onChange={e => setEditingComm({...editingComm, city: e.target.value})} />
+                                        <input placeholder="Slug" className="w-full p-3 border rounded-lg" value={editingComm.slug} onChange={e => setEditingComm({...editingComm, slug: e.target.value})} required />
                                         <input required placeholder="Portal URL" className="w-full p-3 border rounded-lg" value={editingComm.portal_url} onChange={e => setEditingComm({...editingComm, portal_url: e.target.value})} />
 
-                                        <div className="border-t pt-4 mt-2">
+                                        <div className="border-t pt-4 mt-2 bg-slate-50 p-4 rounded-xl">
                                             <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Community Alert Banner</label>
                                             <textarea
                                                 placeholder="Alert Message (e.g. 'Water shut off tomorrow'). Leave empty to disable."
-                                                className="w-full p-3 border rounded-lg h-24 mb-2"
+                                                className="w-full p-3 border rounded-lg h-24 mb-2 text-sm"
                                                 value={editingComm.alert_message || ''}
                                                 onChange={e => setEditingComm({...editingComm, alert_message: e.target.value})}
                                             />
                                             <select
-                                                className="w-full p-3 border rounded-lg"
+                                                className="w-full p-3 border rounded-lg mb-4"
                                                 value={editingComm.alert_type || 'info'}
                                                 onChange={e => setEditingComm({...editingComm, alert_type: e.target.value as any})}
                                             >
@@ -423,6 +480,17 @@ export default function AdminDashboard() {
                                                 <option value="warning">Warning (Orange)</option>
                                                 <option value="emergency">Emergency (Red)</option>
                                             </select>
+
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div>
+                                                    <label className="text-[10px] uppercase font-bold text-slate-400 mb-1 block">Start Date/Time</label>
+                                                    <input type="datetime-local" className="w-full p-2 border rounded text-xs" value={editingComm.alert_start_time || ''} onChange={e => setEditingComm({...editingComm, alert_start_time: e.target.value})} />
+                                                </div>
+                                                <div>
+                                                    <label className="text-[10px] uppercase font-bold text-slate-400 mb-1 block">End Date/Time</label>
+                                                    <input type="datetime-local" className="w-full p-2 border rounded text-xs" value={editingComm.alert_end_time || ''} onChange={e => setEditingComm({...editingComm, alert_end_time: e.target.value})} />
+                                                </div>
+                                            </div>
                                         </div>
 
                                         <div className="flex gap-4 pt-4">
@@ -491,8 +559,6 @@ export default function AdminDashboard() {
                                 ))}
                             </div>
                         </div>
-
-                        {/* MANAGER MODAL */}
                         {isManagerModalOpen && editingManager && (
                             <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
                                 <div className="bg-white rounded-2xl w-full max-w-lg p-8 shadow-2xl">
@@ -549,7 +615,123 @@ export default function AdminDashboard() {
                     </div>
                 )}
 
-                {/* TAB 4: BRAIN SEARCH */}
+                {/* --- TAB: VENDORS (NEW) --- */}
+                {activeTab === 'vendors' && (
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+                         <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-lg font-bold text-slate-800">Preferred Vendors</h2>
+                            <button onClick={() => { setEditingVendor({ id: 0, name: '', specialty: '', website_url: '', active: true }); setIsVendorModalOpen(true); }} className="bg-brand text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2"><Plus className="w-4 h-4" /> Add Vendor</button>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {vendors.map(v => (
+                                <div key={v.id} className="border p-4 rounded-lg flex justify-between items-center">
+                                    <div>
+                                        <div className="font-bold">{v.name}</div>
+                                        <div className="text-sm text-slate-500">{v.specialty}</div>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button onClick={() => { setEditingVendor(v); setIsVendorModalOpen(true); }} className="p-2 text-slate-400 hover:text-brand"><Edit2 className="w-4 h-4"/></button>
+                                        <button onClick={() => handleDeleteGeneric('/api/admin/vendors', v.id, loadVendors)} className="p-2 text-slate-400 hover:text-red-500"><Trash2 className="w-4 h-4"/></button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                         {isVendorModalOpen && (
+                            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                                <div className="bg-white rounded-2xl p-8 w-full max-w-md">
+                                    <h3 className="font-bold mb-4">Edit Vendor</h3>
+                                    <form onSubmit={(e) => { e.preventDefault(); handleSaveGeneric('/api/admin/vendors', editingVendor, loadVendors, setIsVendorModalOpen); }} className="space-y-3">
+                                        <input className="w-full p-2 border rounded" placeholder="Name" value={editingVendor.name} onChange={e => setEditingVendor({...editingVendor, name: e.target.value})} required />
+                                        <input className="w-full p-2 border rounded" placeholder="Specialty" value={editingVendor.specialty} onChange={e => setEditingVendor({...editingVendor, specialty: e.target.value})} required />
+                                        <input className="w-full p-2 border rounded" placeholder="Website" value={editingVendor.website_url} onChange={e => setEditingVendor({...editingVendor, website_url: e.target.value})} />
+                                        <button type="submit" className="w-full bg-brand text-white py-2 rounded font-bold">Save</button>
+                                    </form>
+                                    <button onClick={() => setIsVendorModalOpen(false)} className="w-full mt-2 text-slate-400">Cancel</button>
+                                </div>
+                            </div>
+                         )}
+                    </div>
+                )}
+
+                {/* --- TAB: EVENTS (NEW) --- */}
+                {activeTab === 'events' && (
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+                         <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-lg font-bold text-slate-800">Community Events</h2>
+                            <button onClick={() => { setEditingEvent({ id: 0, community_id: communities[0]?.id || 0, title: '', event_date: '', event_time: '', location: '' }); setIsEventModalOpen(true); }} className="bg-brand text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2"><Plus className="w-4 h-4" /> Add Event</button>
+                        </div>
+                        <div className="space-y-2">
+                             {events.map(ev => (
+                                <div key={ev.id} className="border p-4 rounded-lg flex justify-between items-center bg-white">
+                                    <div>
+                                        <span className="text-xs bg-slate-100 px-2 py-1 rounded text-slate-500 font-bold uppercase">{communities.find(c => c.id === ev.community_id)?.name}</span>
+                                        <div className="font-bold mt-1">{ev.title}</div>
+                                        <div className="text-sm text-slate-500">{ev.event_date} @ {ev.event_time}</div>
+                                    </div>
+                                    <button onClick={() => handleDeleteGeneric('/api/admin/events', ev.id, loadEvents)} className="text-red-400 p-2"><Trash2 className="w-4 h-4"/></button>
+                                </div>
+                             ))}
+                        </div>
+                        {isEventModalOpen && (
+                             <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                                <div className="bg-white rounded-2xl p-8 w-full max-w-md">
+                                    <h3 className="font-bold mb-4">Add Event</h3>
+                                    <form onSubmit={(e) => { e.preventDefault(); handleSaveGeneric('/api/admin/events', editingEvent, loadEvents, setIsEventModalOpen); }} className="space-y-3">
+                                        <select className="w-full p-2 border rounded" value={editingEvent.community_id} onChange={e => setEditingEvent({...editingEvent, community_id: parseInt(e.target.value)})}>
+                                            {communities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                        </select>
+                                        <input className="w-full p-2 border rounded" placeholder="Event Title" value={editingEvent.title} onChange={e => setEditingEvent({...editingEvent, title: e.target.value})} required />
+                                        <input type="date" className="w-full p-2 border rounded" value={editingEvent.event_date} onChange={e => setEditingEvent({...editingEvent, event_date: e.target.value})} required />
+                                        <input type="time" className="w-full p-2 border rounded" value={editingEvent.event_time} onChange={e => setEditingEvent({...editingEvent, event_time: e.target.value})} required />
+                                        <input className="w-full p-2 border rounded" placeholder="Location" value={editingEvent.location} onChange={e => setEditingEvent({...editingEvent, location: e.target.value})} />
+                                        <button type="submit" className="w-full bg-brand text-white py-2 rounded font-bold">Save Event</button>
+                                    </form>
+                                     <button onClick={() => setIsEventModalOpen(false)} className="w-full mt-2 text-slate-400">Cancel</button>
+                                </div>
+                             </div>
+                        )}
+                    </div>
+                )}
+
+                 {/* --- TAB: NEWS (NEW) --- */}
+                {activeTab === 'news' && (
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-lg font-bold text-slate-800">News & Announcements</h2>
+                            <button onClick={() => { setEditingNews({ id: 0, community_id: communities[0]?.id || 0, title: '', content: '', created_at: '' }); setIsNewsModalOpen(true); }} className="bg-brand text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2"><Plus className="w-4 h-4" /> Post News</button>
+                        </div>
+                        <div className="space-y-4">
+                            {news.map(n => (
+                                <div key={n.id} className="border p-4 rounded-lg bg-white">
+                                    <div className="flex justify-between">
+                                        <span className="text-xs bg-slate-100 px-2 py-1 rounded text-slate-500 font-bold uppercase">{communities.find(c => c.id === n.community_id)?.name}</span>
+                                        <button onClick={() => handleDeleteGeneric('/api/admin/news', n.id, loadNews)} className="text-red-400 hover:text-red-600"><Trash2 className="w-4 h-4"/></button>
+                                    </div>
+                                    <h3 className="font-bold mt-2">{n.title}</h3>
+                                    <p className="text-sm text-slate-600 line-clamp-2">{n.content}</p>
+                                </div>
+                            ))}
+                        </div>
+                         {isNewsModalOpen && (
+                             <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                                <div className="bg-white rounded-2xl p-8 w-full max-w-lg">
+                                    <h3 className="font-bold mb-4">Post Announcement</h3>
+                                    <form onSubmit={(e) => { e.preventDefault(); handleSaveGeneric('/api/admin/news', editingNews, loadNews, setIsNewsModalOpen); }} className="space-y-3">
+                                        <select className="w-full p-2 border rounded" value={editingNews.community_id} onChange={e => setEditingNews({...editingNews, community_id: parseInt(e.target.value)})}>
+                                            {communities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                        </select>
+                                        <input className="w-full p-2 border rounded font-bold" placeholder="Headline" value={editingNews.title} onChange={e => setEditingNews({...editingNews, title: e.target.value})} required />
+                                        <textarea className="w-full p-2 border rounded h-32" placeholder="Content..." value={editingNews.content} onChange={e => setEditingNews({...editingNews, content: e.target.value})} required />
+                                        <button type="submit" className="w-full bg-brand text-white py-2 rounded font-bold">Publish Post</button>
+                                    </form>
+                                     <button onClick={() => setIsNewsModalOpen(false)} className="w-full mt-2 text-slate-400">Cancel</button>
+                                </div>
+                             </div>
+                        )}
+                    </div>
+                )}
+
+                {/* TAB 4: BRAIN SEARCH (UPDATED) */}
                 {activeTab === 'brain' && (
                     <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-8 min-h-[600px]">
                         <div className="text-center max-w-2xl mx-auto mb-10">
@@ -561,20 +743,34 @@ export default function AdminDashboard() {
                         </div>
 
                         <form onSubmit={handleBrainSearch} className="max-w-3xl mx-auto mb-12 relative">
-                            <input
-                                type="text"
-                                placeholder="e.g. 'What are the fence height limits?' or 'Which communities ban solar panels?'"
-                                className="w-full p-5 pl-6 pr-16 rounded-full border-2 border-slate-200 shadow-sm focus:border-brand focus:outline-none text-lg"
-                                value={brainQuery}
-                                onChange={(e) => setBrainQuery(e.target.value)}
-                            />
-                            <button
-                                type="submit"
-                                disabled={isBrainSearching || !brainQuery.trim()}
-                                className="absolute right-2 top-2 p-3 bg-brand text-white rounded-full hover:bg-brand-dark disabled:opacity-50 transition-colors"
-                            >
-                                {isBrainSearching ? <Loader className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
-                            </button>
+                             {/* NEW: Context Dropdown */}
+                             <div className="mb-4 flex justify-center">
+                                <select
+                                    className="p-2 border rounded-lg text-sm bg-slate-50"
+                                    value={brainCommunityId}
+                                    onChange={(e) => setBrainCommunityId(e.target.value)}
+                                >
+                                    <option value="">Search All Communities</option>
+                                    {communities.map(c => <option key={c.id} value={c.id}>Limit to: {c.name}</option>)}
+                                </select>
+                            </div>
+
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    placeholder="e.g. 'What are the fence height limits?'"
+                                    className="w-full p-5 pl-6 pr-16 rounded-full border-2 border-slate-200 shadow-sm focus:border-brand focus:outline-none text-lg"
+                                    value={brainQuery}
+                                    onChange={(e) => setBrainQuery(e.target.value)}
+                                />
+                                <button
+                                    type="submit"
+                                    disabled={isBrainSearching || !brainQuery.trim()}
+                                    className="absolute right-2 top-2 p-3 bg-brand text-white rounded-full hover:bg-brand-dark disabled:opacity-50 transition-colors"
+                                >
+                                    {isBrainSearching ? <Loader className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
+                                </button>
+                            </div>
                         </form>
 
                         <div className="max-w-4xl mx-auto space-y-6">
@@ -702,7 +898,7 @@ export default function AdminDashboard() {
                     </div>
                 )}
 
-                {/* TAB 6: ANALYTICS (UPDATED) */}
+                {/* TAB 6: ANALYTICS */}
                 {activeTab === 'analytics' && (
                     <div className="space-y-8 animate-in fade-in duration-500">
                         {/* 1. Header & Controls */}
