@@ -6,7 +6,7 @@ import {
     Mail, Building2, Trash2, CheckCircle, Plus, BookOpen,
     Upload, FileText, Loader, Filter, ShieldAlert, BarChart3,
     TrendingUp, MessageSquare, AlertCircle, RefreshCw, Users, Briefcase,
-    BrainCircuit, Search, Edit2, Calendar, Megaphone, HardHat
+    BrainCircuit, Search, Edit2, Calendar, Megaphone, HardHat, Bot
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -30,11 +30,11 @@ interface Community {
     slug: string;
     alert_message?: string;
     alert_type?: 'info' | 'warning' | 'emergency';
-    alert_start_time?: string; // New
-    alert_end_time?: string;   // New
+    alert_start_time?: string;
+    alert_end_time?: string;
 }
 
-interface Vendor { // New
+interface Vendor {
     id: number;
     name: string;
     specialty: string;
@@ -42,7 +42,7 @@ interface Vendor { // New
     active: boolean;
 }
 
-interface Event { // New
+interface Event {
     id: number;
     community_id: number;
     title: string;
@@ -51,7 +51,7 @@ interface Event { // New
     location: string;
 }
 
-interface NewsPost { // New
+interface NewsPost {
     id: number;
     community_id: number;
     title: string;
@@ -87,7 +87,6 @@ interface AnalyticsData {
 export default function AdminDashboard() {
     const { user, isLoaded } = useUser();
     const router = useRouter();
-    // Updated tabs list
     const [activeTab, setActiveTab] = useState<'inbox' | 'communities' | 'managers' | 'vendors' | 'events' | 'news' | 'knowledge' | 'analytics' | 'brain'>('inbox');
 
     // Auth State
@@ -99,8 +98,6 @@ export default function AdminDashboard() {
     const [managers, setManagers] = useState<Manager[]>([]);
     const [documents, setDocuments] = useState<Document[]>([]);
     const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
-
-    // New Data State
     const [vendors, setVendors] = useState<Vendor[]>([]);
     const [events, setEvents] = useState<Event[]>([]);
     const [news, setNews] = useState<NewsPost[]>([]);
@@ -129,15 +126,16 @@ export default function AdminDashboard() {
 
     // -- STATE FOR BRAIN SEARCH --
     const [brainQuery, setBrainQuery] = useState("");
-    const [brainResults, setBrainResults] = useState<any[]>([]);
+    const [brainResults, setBrainResults] = useState<any[]>([]); // Sources
+    const [brainAnswer, setBrainAnswer] = useState<string>(""); // AI Answer
     const [isBrainSearching, setIsBrainSearching] = useState(false);
-    const [brainCommunityId, setBrainCommunityId] = useState(""); // New Context
+    const [brainCommunityId, setBrainCommunityId] = useState("");
 
     // -- STATE FOR FILTERS --
     const [selectedCommId, setSelectedCommId] = useState<string>("");
     const [analyticsCommId, setAnalyticsCommId] = useState<string>("");
 
-    // --- ACCESS CONTROL CHECK (DB DRIVEN) ---
+    // --- ACCESS CONTROL CHECK ---
     useEffect(() => {
         if (isLoaded && user) {
             fetch('/api/auth/me')
@@ -201,7 +199,7 @@ export default function AdminDashboard() {
         }
     };
 
-    // --- GENERIC HELPER FOR NEW FEATURES ---
+    // --- ACTIONS ---
     const handleSaveGeneric = async (url: string, data: any, refreshFn: () => void, modalSetter: (v: boolean) => void) => {
         const method = data.id === 0 ? 'POST' : 'PUT';
         try {
@@ -220,7 +218,6 @@ export default function AdminDashboard() {
         refreshFn();
     };
 
-    // --- ACTIONS (Original) ---
     const handleSaveCommunity = async (e: React.FormEvent) => {
         e.preventDefault();
         const method = editingComm.id === 0 ? 'POST' : 'PUT';
@@ -251,18 +248,28 @@ export default function AdminDashboard() {
         if (res.ok) { loadManagers(); setIsManagerModalOpen(false); setEditingManager(null); }
     };
 
+    // --- BRAIN SEARCH HANDLER ---
     const handleBrainSearch = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsBrainSearching(true);
+        setBrainAnswer("");
+        setBrainResults([]);
+
         try {
             const res = await fetch('/api/admin/brain', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query: brainQuery, community_id: brainCommunityId }) // Updated
+                // Fix: Send the brainCommunityId filter to the API
+                body: JSON.stringify({ query: brainQuery, community_id: brainCommunityId })
             });
             const data = await res.json();
-            setBrainResults(data.results || []);
-        } finally { setIsBrainSearching(false); }
+
+            // Set both the Answer and the Sources
+            setBrainAnswer(data.answer || "No answer generated.");
+            setBrainResults(data.sources || []);
+        } finally {
+            setIsBrainSearching(false);
+        }
     };
 
     const handleMarkRead = async (id: number) => {
@@ -324,16 +331,13 @@ export default function AdminDashboard() {
 
     if (!isLoaded || loading) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader className="w-8 h-8 text-brand animate-spin" /></div>;
 
-    const userEmail = user?.primaryEmailAddress?.emailAddress;
-
-    // Unauthorized View
     if (isAuthorized === false) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-6 text-center">
                 <div className="bg-red-50 p-6 rounded-2xl border border-red-100 max-w-md w-full">
                     <ShieldAlert className="w-12 h-12 text-red-500 mx-auto mb-4" />
                     <h1 className="text-2xl font-bold text-red-700 mb-2">Access Denied</h1>
-                    <p className="text-red-600 mb-6">You are logged in as: <code className="bg-red-100 px-2 py-1 rounded text-sm font-mono">{userEmail}</code></p>
+                    <p className="text-red-600 mb-6">You are logged in as: <code className="bg-red-100 px-2 py-1 rounded text-sm font-mono">{user?.primaryEmailAddress?.emailAddress}</code></p>
                     <button onClick={() => router.push('/')} className="bg-white border border-red-200 text-red-700 px-6 py-2 rounded-lg font-bold hover:bg-red-50 transition-colors">Return Home</button>
                 </div>
             </div>
@@ -409,7 +413,7 @@ export default function AdminDashboard() {
                     </div>
                 )}
 
-                {/* TAB 2: COMMUNITIES (UPDATED) */}
+                {/* TAB 2: COMMUNITIES */}
                 {activeTab === 'communities' && (
                     <div className="space-y-6">
                         <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
@@ -452,7 +456,7 @@ export default function AdminDashboard() {
                             </div>
                         </div>
 
-                        {/* COMMUNITY MODAL (UPDATED) */}
+                        {/* COMMUNITY MODAL */}
                         {isCommModalOpen && (
                             <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
                                 <div className="bg-white rounded-2xl w-full max-w-lg p-8 shadow-2xl max-h-[90vh] overflow-y-auto">
@@ -615,7 +619,7 @@ export default function AdminDashboard() {
                     </div>
                 )}
 
-                {/* --- TAB: VENDORS (NEW) --- */}
+                {/* --- TAB: VENDORS --- */}
                 {activeTab === 'vendors' && (
                     <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
                          <div className="flex justify-between items-center mb-6">
@@ -653,7 +657,7 @@ export default function AdminDashboard() {
                     </div>
                 )}
 
-                {/* --- TAB: EVENTS (NEW) --- */}
+                {/* --- TAB: EVENTS --- */}
                 {activeTab === 'events' && (
                     <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
                          <div className="flex justify-between items-center mb-6">
@@ -693,7 +697,7 @@ export default function AdminDashboard() {
                     </div>
                 )}
 
-                 {/* --- TAB: NEWS (NEW) --- */}
+                 {/* --- TAB: NEWS --- */}
                 {activeTab === 'news' && (
                     <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
                         <div className="flex justify-between items-center mb-6">
@@ -731,27 +735,30 @@ export default function AdminDashboard() {
                     </div>
                 )}
 
-                {/* TAB 4: BRAIN SEARCH (UPDATED) */}
+                {/* TAB 4: BRAIN SEARCH (UPDATED WITH RAG) */}
                 {activeTab === 'brain' && (
                     <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-8 min-h-[600px]">
                         <div className="text-center max-w-2xl mx-auto mb-10">
                             <div className="w-16 h-16 bg-brand/10 text-brand rounded-full flex items-center justify-center mx-auto mb-4">
-                                <BrainCircuit className="w-8 h-8" />
+                                <Bot className="w-8 h-8" />
                             </div>
-                            <h2 className="text-2xl font-bold text-slate-800 mb-2">Admin Brain Search</h2>
-                            <p className="text-slate-500">Query your entire document database across all communities at once. Perfect for finding specific rules or checking consistency.</p>
+                            <h2 className="text-2xl font-bold text-slate-800 mb-2">Admin Brain</h2>
+                            <p className="text-slate-500">
+                                Ask questions about community rules, bylaws, or regulations.
+                                The AI will read the documents and summarize the answer for you.
+                            </p>
                         </div>
 
                         <form onSubmit={handleBrainSearch} className="max-w-3xl mx-auto mb-12 relative">
-                             {/* NEW: Context Dropdown */}
+                             {/* UPDATED: Context Dropdown */}
                              <div className="mb-4 flex justify-center">
                                 <select
-                                    className="p-2 border rounded-lg text-sm bg-slate-50"
+                                    className="p-2 border rounded-lg text-sm bg-slate-50 font-medium text-slate-600"
                                     value={brainCommunityId}
                                     onChange={(e) => setBrainCommunityId(e.target.value)}
                                 >
-                                    <option value="">Search All Communities</option>
-                                    {communities.map(c => <option key={c.id} value={c.id}>Limit to: {c.name}</option>)}
+                                    <option value="">-- Search Entire Database --</option>
+                                    {communities.map(c => <option key={c.id} value={c.id}>Focus on: {c.name}</option>)}
                                 </select>
                             </div>
 
@@ -773,26 +780,43 @@ export default function AdminDashboard() {
                             </div>
                         </form>
 
-                        <div className="max-w-4xl mx-auto space-y-6">
-                            {brainResults.length > 0 && (
-                                <h3 className="font-bold text-slate-400 uppercase tracking-wider text-xs mb-4">Search Results</h3>
+                        <div className="max-w-4xl mx-auto space-y-8">
+
+                            {/* AI ANSWER SECTION */}
+                            {brainAnswer && (
+                                <div className="bg-blue-50/50 p-8 rounded-2xl border border-blue-100 shadow-sm animate-in fade-in slide-in-from-bottom-2">
+                                    <h3 className="font-bold text-brand-dark flex items-center gap-2 mb-4">
+                                        <Bot className="w-5 h-5" /> AI Answer
+                                    </h3>
+                                    <div className="prose prose-slate max-w-none text-slate-700 leading-relaxed whitespace-pre-line">
+                                        {brainAnswer}
+                                    </div>
+                                </div>
                             )}
 
-                            {brainResults.map((result, i) => (
-                                <div key={i} className="bg-slate-50 p-6 rounded-xl border border-slate-200">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <span className="bg-white border border-slate-200 px-3 py-1 rounded-full text-xs font-bold text-brand">
-                                            {result.community_name}
-                                        </span>
-                                        <span className="text-xs text-slate-400 font-mono">{result.filename}</span>
+                            {/* SOURCES SECTION */}
+                            {brainResults.length > 0 && (
+                                <div>
+                                    <h3 className="font-bold text-slate-400 uppercase tracking-wider text-xs mb-4 ml-1">Sources Cited</h3>
+                                    <div className="grid gap-3">
+                                        {brainResults.map((result, i) => (
+                                            <div key={i} className="bg-white p-4 rounded-xl border border-slate-200 hover:border-brand/30 transition-colors">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <span className="bg-slate-100 border border-slate-200 px-3 py-1 rounded-full text-[10px] font-bold text-slate-600 uppercase">
+                                                        {result.community_name}
+                                                    </span>
+                                                    <span className="text-xs text-slate-400 font-mono">{result.filename}</span>
+                                                </div>
+                                                <p className="text-slate-500 text-xs line-clamp-2 italic">
+                                                    "...{result.content.substring(0, 150)}..."
+                                                </p>
+                                            </div>
+                                        ))}
                                     </div>
-                                    <p className="text-slate-700 leading-relaxed text-sm">
-                                        "...{result.content}..."
-                                    </p>
                                 </div>
-                            ))}
+                            )}
 
-                            {brainResults.length === 0 && !isBrainSearching && brainQuery && (
+                            {brainResults.length === 0 && !isBrainSearching && brainQuery && !brainAnswer && (
                                 <div className="text-center text-slate-400 py-10">No relevant documents found.</div>
                             )}
                         </div>
