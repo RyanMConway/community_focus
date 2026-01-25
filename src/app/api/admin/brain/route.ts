@@ -14,8 +14,8 @@ export async function POST(request: Request) {
         const { query, community_id } = await request.json();
         if (!query) return NextResponse.json({ error: "Query required" }, { status: 400 });
 
-        // 2. Generate Embedding for the User's Question
-        // Note: 'text-embedding-004' is the correct modern embedding model
+        // 2. Generate Embedding
+        // We use text-embedding-004 as it is the current standard
         const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
         const result = await embeddingModel.embedContent(query);
         const embedding = result.embedding.values;
@@ -52,8 +52,8 @@ export async function POST(request: Request) {
         const sources = searchRes.rows;
 
         // 4. "RAG" - Generate a Natural Language Answer
-        // FIX: Changed model from "gemini-1.5-flash" to "gemini-1.5-flash-001"
-        const generativeModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash-001" });
+        // FIX: Updated to use 'gemini-2.0-flash' to match your working Chat API
+        const generativeModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
         const contextText = sources.map((s: any) => `SOURCE (${s.filename}): ${s.content}`).join("\n\n");
 
