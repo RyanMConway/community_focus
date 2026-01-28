@@ -45,7 +45,6 @@ function getSmartDetails(filename: string) {
     const lower = filename.toLowerCase();
     const extension = filename.toLowerCase().endsWith('.txt') ? '.txt' : '.pdf';
 
-    // 1. Governing Docs
     if (lower.includes('article') && lower.includes('incorp'))
         return { slug: `articles${extension}`, title: 'Articles of Incorporation', category: 'Governing' };
     if (lower.includes('bylaw'))
@@ -55,7 +54,6 @@ function getSmartDetails(filename: string) {
     if (lower.includes('rule') || lower.includes('reg'))
         return { slug: `rules-and-regs${extension}`, title: 'Rules & Regulations', category: 'Governing' };
 
-    // 2. ARC
     if (lower.includes('arc') || lower.includes('architect') || lower.includes('acc')) {
         const humanTitle = humanizeTitle(filename);
         if (lower.includes('guide') || lower.includes('standard'))
@@ -63,7 +61,6 @@ function getSmartDetails(filename: string) {
         return { slug: `arc-form${extension}`, title: humanTitle, category: 'Forms' };
     }
 
-    // 3. Fallback
     const humanTitle = humanizeTitle(filename);
     const safeSlug = filename.replace(/\.(pdf|txt)$/i, '').replace(/[^a-z0-9]/gi, '-').toLowerCase() + extension;
     return { slug: safeSlug, title: humanTitle, category: 'General' };
@@ -81,7 +78,7 @@ export async function POST(req: NextRequest) {
         const communitySlug = formData.get('communitySlug') as string;
         const customTitle = formData.get('customTitle') as string;
         const extractedText = formData.get('extractedText') as string;
-        const manualCategory = formData.get('category') as string; // <--- NEW FIELD
+        const manualCategory = formData.get('category') as string;
 
         if (!file || !communitySlug) {
             return NextResponse.json({ error: 'Missing file or community' }, { status: 400 });
@@ -95,18 +92,14 @@ export async function POST(req: NextRequest) {
             const communityId = commResult.rows[0].id;
             const communityName = commResult.rows[0].name;
 
-            // --- NAMING & CATEGORY LOGIC ---
+            // --- NAMING LOGIC ---
             let finalSlug = '';
             let finalTitle = '';
             let category = 'General';
             const extension = file.name.toLowerCase().endsWith('.txt') ? '.txt' : '.pdf';
-
-            // 1. Calculate Base Details (We need this for Slug/Title even if category is manual)
             const smartDetails = getSmartDetails(file.name);
 
-            // 2. Determine Title & Slug
             if (customTitle && customTitle.trim()) {
-                // Manual Title Logic
                 finalTitle = customTitle.trim();
                 finalSlug = finalTitle.toLowerCase()
                         .replace(/[^a-z0-9]/g, '-')
@@ -114,28 +107,22 @@ export async function POST(req: NextRequest) {
                         .replace(/^-|-$/g, '')
                     + extension;
             } else {
-                // Auto Title Logic
                 finalTitle = smartDetails.title;
                 finalSlug = smartDetails.slug;
             }
 
-            // 3. Determine Category (Manual Override > Auto Detect)
             if (manualCategory && manualCategory !== 'Auto') {
                 category = manualCategory;
             } else if (customTitle) {
-                // If custom title but Auto category, try to guess from custom title
                 const lowerTitle = finalTitle.toLowerCase();
-                if (lowerTitle.includes('bylaw') || lowerTitle.includes('rule') || lowerTitle.includes('ccr') || lowerTitle.includes('declaration')) {
+                if (lowerTitle.includes('bylaw') || lowerTitle.includes('rule') || lowerTitle.includes('ccr')) {
                     category = 'Governing';
                 } else if (lowerTitle.includes('form') || lowerTitle.includes('application')) {
                     category = 'Forms';
-                } else if (lowerTitle.includes('budget') || lowerTitle.includes('financial')) {
-                    category = 'Financials';
                 } else {
-                    category = smartDetails.category; // Fallback to filename guess
+                    category = smartDetails.category;
                 }
             } else {
-                // Fully Auto
                 category = smartDetails.category;
             }
 
@@ -147,12 +134,9 @@ export async function POST(req: NextRequest) {
 
             while (!isUnique) {
                 const checkRes = await client.query(
-                    `SELECT id FROM community_downloads 
-                     WHERE community_id = $1 
-                     AND (title = $2 OR file_url LIKE $3)`,
+                    `SELECT id FROM community_downloads WHERE community_id = $1 AND (title = $2 OR file_url LIKE $3)`,
                     [communityId, finalTitle, `%/${finalSlug}`]
                 );
-
                 if (checkRes.rows.length > 0) {
                     counter++;
                     finalSlug = baseSlug.replace(extension, `-${counter}${extension}`);
@@ -162,33 +146,53 @@ export async function POST(req: NextRequest) {
                 }
             }
 
+            // --- 1. UPLOAD TO STORAGE (FAULT TOLERANT) ---
             const storagePath = `${communitySlug}/${finalSlug}`;
-
-            // --- 1. UPLOAD TO STORAGE ---
             const fileBuffer = await file.arrayBuffer();
             const buffer = Buffer.from(fileBuffer);
             const mimeType = extension === '.txt' ? 'text/plain' : 'application/pdf';
 
-            const { error: uploadError } = await supabase.storage
-                .from('community-files')
-                .upload(storagePath, buffer, { upsert: true, contentType: mimeType });
+            let publicUrl = '';
+            let uploadSuccess = false;
 
-            if (uploadError) throw uploadError;
+            try {
+                console.log(`[Upload] Attempting Supabase upload to: ${storagePath}`);
+                const { error: uploadError } = await supabase.storage
+                    .from('community-files')
+                    .upload(storagePath, buffer, { upsert: true, contentType: mimeType });
 
-            const { data: { publicUrl } } = supabase.storage.from('community-files').getPublicUrl(storagePath);
+                if (uploadError) {
+                    console.error("❌ SUPABASE UPLOAD FAILED:", uploadError);
+                    // Do not throw; continue so we can still embed the text!
+                } else {
+                    const { data } = supabase.storage.from('community-files').getPublicUrl(storagePath);
+                    publicUrl = data.publicUrl;
+                    uploadSuccess = true;
+                    console.log(`✅ Supabase upload success: ${publicUrl}`);
+                }
+            } catch (supaCrash) {
+                console.error("❌ SUPABASE CRASHED:", supaCrash);
+            }
 
             // --- 2. DB INSERT (Downloads / Public Link) ---
-            await client.query(
-                `INSERT INTO community_downloads (community_id, title, category, file_url)
-                 VALUES ($1, $2, $3, $4)`,
-                [communityId, finalTitle, category, publicUrl]
-            );
+            // Only insert into downloads if we actually have a file link, OR use a placeholder if you prefer
+            if (uploadSuccess && publicUrl) {
+                await client.query(
+                    `INSERT INTO community_downloads (community_id, title, category, file_url)
+                     VALUES ($1, $2, $3, $4)`,
+                    [communityId, finalTitle, category, publicUrl]
+                );
+            } else {
+                console.warn("⚠️ Skipping 'community_downloads' insert because file upload failed.");
+            }
 
-            // --- 3. AI CHUNKING & EMBEDDING ---
+            // --- 3. AI CHUNKING & EMBEDDING (BRAIN) ---
+            // This runs regardless of Supabase status
             const textToProcess = `[DOCUMENT: ${finalTitle} for ${communityName}]\n${extractedText || "(No text content)"}`;
             const chunks = smartChunking(textToProcess);
-            console.log(`[AI] Processing ${chunks.length} chunks for ${finalSlug}`);
+            console.log(`[AI] Processing ${chunks.length} chunks for Brain...`);
 
+            // Using text-embedding-004 (Native 768 Dimensions)
             const embedModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
             let insertedCount = 0;
 
@@ -197,22 +201,31 @@ export async function POST(req: NextRequest) {
                     const result = await embedModel.embedContent(chunk);
                     const embedding = result.embedding.values;
 
+                    // Validate Dimensions before Insert
+                    if (embedding.length !== 768) {
+                        console.warn(`⚠️ Warning: Model returned ${embedding.length} dimensions. DB expects 768.`);
+                    }
+
                     await client.query(
                         `INSERT INTO community_docs (community_id, filename, content, embedding, created_at)
                          VALUES ($1, $2, $3, $4, NOW())`,
                         [communityId, finalSlug, chunk, JSON.stringify(embedding)]
                     );
                     insertedCount++;
-                } catch (embedError) {
-                    console.error(`[AI Error] Failed to embed chunk for ${finalSlug}`, embedError);
+                } catch (embedError: any) {
+                    console.error(`[AI Error] Failed to embed chunk:`, embedError.message);
                 }
             }
 
             return NextResponse.json({
                 success: true,
+                storageSuccess: uploadSuccess, // Tell UI if storage worked
                 url: publicUrl,
                 title: finalTitle,
-                chunks: insertedCount
+                chunks: insertedCount,
+                message: uploadSuccess
+                    ? "File uploaded and processed successfully."
+                    : "File storage failed, but document was added to AI Brain."
             });
 
         } finally {
