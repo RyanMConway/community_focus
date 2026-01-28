@@ -3,13 +3,12 @@ import pool from '@/lib/db';
 import { createClient } from '@supabase/supabase-js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// --- CONFIG ---
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
-// --- HELPER: Smart Chunking (For AI) ---
+// --- HELPER: Smart Chunking ---
 function smartChunking(text: string, chunkSize = 1000, overlap = 200): string[] {
     const chunks: string[] = [];
     let start = 0;
@@ -29,7 +28,6 @@ function smartChunking(text: string, chunkSize = 1000, overlap = 200): string[] 
     return chunks;
 }
 
-// --- HELPER: Humanize Filenames ---
 function humanizeTitle(filename: string): string {
     let clean = filename.replace(/\.(pdf|txt)$/i, '');
     clean = clean.replace(/[-_]/g, ' ');
@@ -40,26 +38,17 @@ function humanizeTitle(filename: string): string {
     return clean.replace(/\s+/g, ' ').trim();
 }
 
-// --- HELPER: Smart Categorization & Naming ---
 function getSmartDetails(filename: string) {
     const lower = filename.toLowerCase();
     const extension = filename.toLowerCase().endsWith('.txt') ? '.txt' : '.pdf';
 
+    // Categorization
     if (lower.includes('article') && lower.includes('incorp'))
         return { slug: `articles${extension}`, title: 'Articles of Incorporation', category: 'Governing' };
     if (lower.includes('bylaw'))
         return { slug: `bylaws${extension}`, title: 'Bylaws', category: 'Governing' };
     if (lower.includes('ccr') || lower.includes('declaration') || lower.includes('covenant'))
         return { slug: `ccrs${extension}`, title: 'Declaration of Covenants (CCRs)', category: 'Governing' };
-    if (lower.includes('rule') || lower.includes('reg'))
-        return { slug: `rules-and-regs${extension}`, title: 'Rules & Regulations', category: 'Governing' };
-
-    if (lower.includes('arc') || lower.includes('architect') || lower.includes('acc')) {
-        const humanTitle = humanizeTitle(filename);
-        if (lower.includes('guide') || lower.includes('standard'))
-            return { slug: `arc-guidelines${extension}`, title: 'Architectural Guidelines', category: 'Governing' };
-        return { slug: `arc-form${extension}`, title: humanTitle, category: 'Forms' };
-    }
 
     const humanTitle = humanizeTitle(filename);
     const safeSlug = filename.replace(/\.(pdf|txt)$/i, '').replace(/[^a-z0-9]/gi, '-').toLowerCase() + extension;
@@ -79,6 +68,7 @@ export async function POST(req: NextRequest) {
         const customTitle = formData.get('customTitle') as string;
         const extractedText = formData.get('extractedText') as string;
         const manualCategory = formData.get('category') as string;
+        const isHidden = formData.get('isHidden') === 'true'; // New: Visibility
 
         if (!file || !communitySlug) {
             return NextResponse.json({ error: 'Missing file or community' }, { status: 400 });
@@ -86,52 +76,28 @@ export async function POST(req: NextRequest) {
 
         const client = await pool.connect();
         try {
+            // Find Community ID (Works for 'global' too)
             const commResult = await client.query('SELECT id, name FROM communities WHERE slug = $1', [communitySlug]);
             if (commResult.rows.length === 0) throw new Error('Community not found');
 
             const communityId = commResult.rows[0].id;
             const communityName = commResult.rows[0].name;
 
-            // --- NAMING LOGIC ---
-            let finalSlug = '';
-            let finalTitle = '';
-            let category = 'General';
-            const extension = file.name.toLowerCase().endsWith('.txt') ? '.txt' : '.pdf';
+            // Naming & Category Logic
             const smartDetails = getSmartDetails(file.name);
+            const extension = file.name.toLowerCase().endsWith('.txt') ? '.txt' : '.pdf';
 
-            if (customTitle && customTitle.trim()) {
-                finalTitle = customTitle.trim();
-                finalSlug = finalTitle.toLowerCase()
-                        .replace(/[^a-z0-9]/g, '-')
-                        .replace(/-+/g, '-')
-                        .replace(/^-|-$/g, '')
-                    + extension;
-            } else {
-                finalTitle = smartDetails.title;
-                finalSlug = smartDetails.slug;
-            }
+            let finalTitle = customTitle?.trim() || smartDetails.title;
+            let finalSlug = (customTitle ? customTitle.toLowerCase().replace(/[^a-z0-9]/g, '-') : smartDetails.slug);
+            if (!finalSlug.endsWith(extension)) finalSlug += extension;
 
-            if (manualCategory && manualCategory !== 'Auto') {
-                category = manualCategory;
-            } else if (customTitle) {
-                const lowerTitle = finalTitle.toLowerCase();
-                if (lowerTitle.includes('bylaw') || lowerTitle.includes('rule') || lowerTitle.includes('ccr')) {
-                    category = 'Governing';
-                } else if (lowerTitle.includes('form') || lowerTitle.includes('application')) {
-                    category = 'Forms';
-                } else {
-                    category = smartDetails.category;
-                }
-            } else {
-                category = smartDetails.category;
-            }
+            let category = (manualCategory && manualCategory !== 'Auto') ? manualCategory : smartDetails.category;
 
-            // --- COLLISION DETECTION ---
+            // Collision Detection
             let counter = 1;
             let isUnique = false;
             const baseSlug = finalSlug;
             const baseTitle = finalTitle;
-
             while (!isUnique) {
                 const checkRes = await client.query(
                     `SELECT id FROM community_downloads WHERE community_id = $1 AND (title = $2 OR file_url LIKE $3)`,
@@ -146,7 +112,7 @@ export async function POST(req: NextRequest) {
                 }
             }
 
-            // --- 1. UPLOAD TO STORAGE (FAULT TOLERANT) ---
+            // 1. Upload to Supabase (Fault Tolerant)
             const storagePath = `${communitySlug}/${finalSlug}`;
             const fileBuffer = await file.arrayBuffer();
             const buffer = Buffer.from(fileBuffer);
@@ -156,76 +122,55 @@ export async function POST(req: NextRequest) {
             let uploadSuccess = false;
 
             try {
-                console.log(`[Upload] Attempting Supabase upload to: ${storagePath}`);
                 const { error: uploadError } = await supabase.storage
                     .from('community-files')
                     .upload(storagePath, buffer, { upsert: true, contentType: mimeType });
 
-                if (uploadError) {
-                    console.error("❌ SUPABASE UPLOAD FAILED:", uploadError);
-                    // Do not throw; continue so we can still embed the text!
-                } else {
+                if (!uploadError) {
                     const { data } = supabase.storage.from('community-files').getPublicUrl(storagePath);
                     publicUrl = data.publicUrl;
                     uploadSuccess = true;
-                    console.log(`✅ Supabase upload success: ${publicUrl}`);
                 }
-            } catch (supaCrash) {
-                console.error("❌ SUPABASE CRASHED:", supaCrash);
+            } catch (e) {
+                console.error("Supabase Upload Error (Continuing...)", e);
             }
 
-            // --- 2. DB INSERT (Downloads / Public Link) ---
-            // Only insert into downloads if we actually have a file link, OR use a placeholder if you prefer
+            // 2. Insert into Downloads
             if (uploadSuccess && publicUrl) {
                 await client.query(
-                    `INSERT INTO community_downloads (community_id, title, category, file_url)
-                     VALUES ($1, $2, $3, $4)`,
-                    [communityId, finalTitle, category, publicUrl]
+                    `INSERT INTO community_downloads (community_id, title, category, file_url, is_hidden)
+                     VALUES ($1, $2, $3, $4, $5)`,
+                    [communityId, finalTitle, category, publicUrl, isHidden]
                 );
-            } else {
-                console.warn("⚠️ Skipping 'community_downloads' insert because file upload failed.");
             }
 
-            // --- 3. AI CHUNKING & EMBEDDING (BRAIN) ---
-            // This runs regardless of Supabase status
+            // 3. AI Embedding (Brain)
             const textToProcess = `[DOCUMENT: ${finalTitle} for ${communityName}]\n${extractedText || "(No text content)"}`;
             const chunks = smartChunking(textToProcess);
-            console.log(`[AI] Processing ${chunks.length} chunks for Brain...`);
 
-            // Using text-embedding-004 (Native 768 Dimensions)
-            const embedModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
-            let insertedCount = 0;
+            // Using gemini-embedding-001 (Works with your API Key)
+            const embedModel = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
 
             for (const chunk of chunks) {
                 try {
                     const result = await embedModel.embedContent(chunk);
                     const embedding = result.embedding.values;
 
-                    // Validate Dimensions before Insert
-                    if (embedding.length !== 768) {
-                        console.warn(`⚠️ Warning: Model returned ${embedding.length} dimensions. DB expects 768.`);
-                    }
-
                     await client.query(
                         `INSERT INTO community_docs (community_id, filename, content, embedding, created_at)
                          VALUES ($1, $2, $3, $4, NOW())`,
                         [communityId, finalSlug, chunk, JSON.stringify(embedding)]
                     );
-                    insertedCount++;
-                } catch (embedError: any) {
-                    console.error(`[AI Error] Failed to embed chunk:`, embedError.message);
+                } catch (e) {
+                    console.error("Embedding chunk failed", e);
                 }
             }
 
             return NextResponse.json({
                 success: true,
-                storageSuccess: uploadSuccess, // Tell UI if storage worked
-                url: publicUrl,
-                title: finalTitle,
-                chunks: insertedCount,
                 message: uploadSuccess
                     ? "File uploaded and processed successfully."
-                    : "File storage failed, but document was added to AI Brain."
+                    : "File storage failed, but AI Brain was updated."
             });
 
         } finally {
@@ -233,7 +178,6 @@ export async function POST(req: NextRequest) {
         }
 
     } catch (error: any) {
-        console.error('Upload Error:', error);
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }

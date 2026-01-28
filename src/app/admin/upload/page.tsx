@@ -1,14 +1,15 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Upload, CheckCircle, AlertCircle, Loader2, FileText } from 'lucide-react';
+import { Upload, CheckCircle, AlertCircle, Loader2, FileText, Globe, Lock } from 'lucide-react';
 
 export default function AdminUploadPage() {
     const [communities, setCommunities] = useState<any[]>([]);
     const [selectedSlug, setSelectedSlug] = useState('');
     const [file, setFile] = useState<File | null>(null);
     const [customTitle, setCustomTitle] = useState('');
-    const [category, setCategory] = useState('Auto'); // <--- NEW STATE
+    const [category, setCategory] = useState('Auto');
+    const [isHidden, setIsHidden] = useState(false); // New: Visibility Flag
     const [status, setStatus] = useState<'idle' | 'parsing' | 'uploading' | 'success' | 'error'>('idle');
     const [message, setMessage] = useState('');
 
@@ -69,7 +70,8 @@ export default function AdminUploadPage() {
             formData.append('file', file);
             formData.append('communitySlug', selectedSlug);
             formData.append('extractedText', extractedText);
-            formData.append('category', category); // <--- SEND CATEGORY
+            formData.append('category', category);
+            formData.append('isHidden', isHidden.toString()); // New: Send Visibility
             if (customTitle.trim()) formData.append('customTitle', customTitle.trim());
 
             const res = await fetch('/api/admin/upload', {
@@ -84,7 +86,8 @@ export default function AdminUploadPage() {
             setMessage(`Successfully uploaded: ${data.title}`);
             setFile(null);
             setCustomTitle('');
-            setCategory('Auto'); // Reset category
+            setCategory('Auto');
+            setIsHidden(false);
 
         } catch (error: any) {
             setStatus('error');
@@ -104,13 +107,16 @@ export default function AdminUploadPage() {
 
                 {/* 1. Community Select */}
                 <div className="mb-6">
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">Select Community</label>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Target Community</label>
                     <select
-                        className="w-full p-3 border border-slate-200 rounded-lg"
+                        className="w-full p-3 border border-slate-200 rounded-lg bg-slate-50"
                         onChange={(e) => setSelectedSlug(e.target.value)}
                         value={selectedSlug}
                     >
-                        <option value="">-- Choose a Community --</option>
+                        <option value="">-- Choose Community --</option>
+                        {/* GLOBAL OPTION */}
+                        <option value="global" className="font-bold text-blue-700">🌍 Global Knowledge (All)</option>
+                        <option disabled>-------------------</option>
                         {communities.map(c => (
                             <option key={c.id} value={c.slug}>{c.name}</option>
                         ))}
@@ -128,20 +134,39 @@ export default function AdminUploadPage() {
                     />
                 </div>
 
-                {/* 3. Category Select (NEW) */}
-                <div className="mb-4">
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">Category</label>
-                    <select
-                        className="w-full p-3 border border-slate-200 rounded-lg"
-                        onChange={(e) => setCategory(e.target.value)}
-                        value={category}
-                    >
-                        <option value="Auto">✨ Auto-Detect (Default)</option>
-                        <option value="Governing">Governing Documents</option>
-                        <option value="Forms">Forms & Applications</option>
-                        <option value="Financials">Financials & Budgets</option>
-                        <option value="General">General Information</option>
-                    </select>
+                {/* 3. Options Grid */}
+                <div className="grid grid-cols-2 gap-4 mb-8">
+                    {/* Category */}
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Category</label>
+                        <select
+                            className="w-full p-3 border border-slate-200 rounded-lg"
+                            onChange={(e) => setCategory(e.target.value)}
+                            value={category}
+                        >
+                            <option value="Auto">✨ Auto-Detect</option>
+                            <option value="Governing">Governing Docs</option>
+                            <option value="Forms">Forms</option>
+                            <option value="Financials">Financials</option>
+                            <option value="General">General</option>
+                        </select>
+                    </div>
+
+                    {/* Visibility Toggle */}
+                    <div>
+                         <label className="block text-sm font-semibold text-slate-700 mb-2">Visibility</label>
+                         <button
+                            onClick={() => setIsHidden(!isHidden)}
+                            className={`w-full p-3 rounded-lg border flex items-center justify-center gap-2 transition-all ${
+                                isHidden
+                                ? 'bg-amber-50 border-amber-200 text-amber-700 font-semibold'
+                                : 'bg-white border-slate-200 text-slate-600'
+                            }`}
+                         >
+                            {isHidden ? <Lock className="w-4 h-4" /> : <Globe className="w-4 h-4" />}
+                            {isHidden ? "Admin/AI Only" : "Public Download"}
+                         </button>
+                    </div>
                 </div>
 
                 {/* 4. Custom Title */}
