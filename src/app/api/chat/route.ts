@@ -45,76 +45,108 @@ export async function POST(request: Request) {
         }
 
         const safeTopic = analysis.topic || "General Query";
-        const searchTerms = (analysis.document_keywords || safeTopic).split(" ").filter((w: string) => w.length > 2);
+        const keywords = (analysis.document_keywords || safeTopic).replace(/[^\w\s]/g, '').trim();
+        const searchTerms = keywords.split(" ").filter((w: string) => w.length > 2);
 
         // --- STEP 2: EMBEDDING (3072 Dims) ---
-        // We use gemini-embedding-001 because text-embedding-004 is 404ing for you.
         const embeddingModel = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
 
         // --- STEP 3: FETCH DATA ---
-        let embedding, manager, foundFiles;
+        let embedding = null;
+        let manager = { name: 'The Office', email: OFFICE_EMAIL, phone: OFFICE_PHONE };
+        let foundFiles = [];
+        let contextRows = [];
 
         try {
+            // Parallel Fetch: Embedding + Manager + Files
             const [embeddingResult, managerRes, filesRes] = await Promise.all([
-                embeddingModel.embedContent(analysis.document_keywords || message),
+                embeddingModel.embedContent(keywords),
                 pool.query(`SELECT m.name, m.email, m.phone FROM managers m JOIN communities c ON c.manager_id = m.id WHERE c.name = $1`, [communityName]),
                 pool.query(`
-                    SELECT title, file_url
+                    SELECT title, file_url, category
                     FROM community_downloads cd
                     JOIN communities c ON cd.community_id = c.id
                     WHERE c.name = $1
                     AND (title ILIKE $2 OR category ILIKE $2)
                     LIMIT 5
-                `, [communityName, `%${analysis.document_keywords || safeTopic}%`])
+                `, [communityName, `%${keywords}%`])
             ]);
 
             embedding = embeddingResult.embedding.values;
-            manager = managerRes.rows[0] || { name: 'The Office', email: OFFICE_EMAIL, phone: OFFICE_PHONE };
+            if (managerRes.rows.length > 0) manager = managerRes.rows[0];
             foundFiles = filesRes.rows;
+
+            // --- STEP 4: HYBRID CONTEXT SEARCH (Vector + Keyword) ---
+
+            // A. Vector Search
+            let vectorDocs = [];
+            try {
+                const vectorQuery = await pool.query(
+                    `SELECT cd.content, c.name as community_name, 1 as score
+                     FROM community_docs cd
+                     JOIN communities c ON cd.community_id = c.id
+                     WHERE c.name = $1
+                     ORDER BY (cd.embedding <=> $2::vector) ASC
+                     LIMIT 4`,
+                    [communityName, JSON.stringify(embedding)]
+                );
+                vectorDocs = vectorQuery.rows;
+            } catch (err) {
+                console.warn("Vector Search failed (likely empty embeddings):", err);
+            }
+
+            // B. Keyword Search Fallback (Crucial if embeddings are broken/empty)
+            let keywordDocs = [];
+            if (searchTerms.length > 0) {
+                 const keywordQuery = await pool.query(
+                    `SELECT cd.content, c.name as community_name, 2 as score
+                     FROM community_docs cd
+                     JOIN communities c ON cd.community_id = c.id
+                     WHERE c.name = $1
+                     AND (cd.content ILIKE $2 OR cd.filename ILIKE $2)
+                     LIMIT 4`,
+                    [communityName, `%${searchTerms[0]}%`] // Searching for primary keyword
+                );
+                keywordDocs = keywordQuery.rows;
+            }
+
+            // Combine and Deduplicate
+            const allDocs = [...vectorDocs, ...keywordDocs];
+            const uniqueDocs = Array.from(new Set(allDocs.map(a => a.content))).map(content => {
+                return allDocs.find(a => a.content === content);
+            });
+
+            contextRows = uniqueDocs.slice(0, 6); // Keep top 6 chunks
 
         } catch (err: any) {
             console.error("Data Fetch Error:", err.message);
-            // Fail gracefully if embedding fails
             return NextResponse.json({ reply: "I'm having trouble accessing the database right now. Please try again." });
         }
 
-        // --- STEP 4: SEARCH (No Index Required) ---
-        let vectorRes;
-        try {
-            vectorRes = await pool.query(
-                `SELECT cd.content, c.name as community_name
-                 FROM community_docs cd
-                 JOIN communities c ON cd.community_id = c.id
-                 WHERE c.name = $1
-                 ORDER BY (cd.embedding <=> $2::vector) ASC
-                 LIMIT 6`,
-                [communityName, JSON.stringify(embedding)]
-            );
-        } catch (dbError: any) {
-            console.error("Vector DB Error:", dbError.message);
-            vectorRes = { rows: [] };
-        }
-
         // --- STEP 5: GENERATE REPLY ---
-        const contextDocs = vectorRes.rows.map((r: any) => r.content).join("\n\n");
+        const contextDocs = contextRows.map((r: any) => r.content).join("\n\n");
         const fileLinks = foundFiles.map((f: any) => `- [Download ${f.title}](${f.file_url})`).join("\n");
 
         const chatModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
         const systemPrompt = `
-        You are the Community Focus Assistant.
+        You are the Community Focus Assistant. Your name is Waldo.
+
         **MANAGER:** ${manager.name} (${manager.email})
-        **FILES:** ${foundFiles.length > 0 ? fileLinks : "None."}
-        **CONTEXT:** ${contextDocs}
+        **FILES FOUND:** ${foundFiles.length > 0 ? fileLinks : "No specific files found."}
+
+        **KNOWLEDGE BASE (Context):** ${contextDocs || "No specific text found in database."}
+
+        **USER QUESTION:** ${message}
 
         **INSTRUCTIONS:**
-        Answer the user's question using the Context. Be friendly and clear.
+        1. **Check Files First:** If the user needs a form (like ARC/Architectural) and you see it in "FILES FOUND" above, explicitly tell them to download it.
+        2. **Submission Logic:** If the user asks "How to submit" and the context doesn't say otherwise, advise them to: "Complete the form and submit it to the cinc systems portal."
+        3. **Be Helpful:** If the Knowledge Base is empty, don't say "I can't answer." Instead, use the Manager Contact info to provide a helpful path forward (e.g., "I don't have the specific rule in front of me, but you can reach out to...").
+        4. **Tone:** Friendly, professional, plain English.
         `;
 
-        const result = await chatModel.generateContent([
-            { text: systemPrompt },
-            { text: `User Question: ${message}` }
-        ]);
+        const result = await chatModel.generateContent(systemPrompt);
 
         return NextResponse.json({ reply: result.response.text() });
 
