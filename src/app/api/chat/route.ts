@@ -9,9 +9,23 @@ const OFFICE_PHONE = "(919) 564-9134";
 const OFFICE_EMAIL = "info@communityfocusnc.com";
 const MASTER_WORK_ORDER_URL = "https://cfnc.cincwebaxis.com/workorders";
 
+// --- HELPER: RETRY LOGIC ---
+// This attempts the API call up to 3 times if it hits a rate limit (429)
+async function retryWithBackoff<T>(fn: () => Promise<T>, retries = 3, delay = 1000): Promise<T> {
+    try {
+        return await fn();
+    } catch (error: any) {
+        if (retries > 0 && (error.status === 429 || error.message?.includes('429'))) {
+            console.warn(`Rate limit hit. Retrying in ${delay}ms... (${retries} attempts left)`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            return retryWithBackoff(fn, retries - 1, delay * 2);
+        }
+        throw error;
+    }
+}
+
 export async function POST(request: Request) {
     try {
-        // --- FIX 1: Accept 'communitySlug' instead of 'communityName' ---
         const { message, history, communitySlug } = await request.json();
 
         if (!message || !communitySlug) {
@@ -27,15 +41,16 @@ export async function POST(request: Request) {
         historyLines.push(`User: ${message}`);
         const historyText = historyLines.join('\n');
 
-        // --- STEP 2: ANALYZE INTENT ---
+        // --- STEP 2: ANALYZE INTENT (With Retry) ---
+        // SWITCHED TO STABLE MODEL: gemini-1.5-flash-001
         const analyzerModel = genAI.getGenerativeModel({
-            model: "gemini-2.0-flash",
+            model: "gemini-1.5-flash-001",
             generationConfig: { responseMimeType: "application/json" }
         });
 
         const analyzerPrompt = `
         You are a conversation analyzer.
-        
+
         **CONTEXT:** User is asking about the community with ID/Slug: "${communitySlug}".
         **HISTORY:** ${historyText}
 
@@ -55,7 +70,8 @@ export async function POST(request: Request) {
         }
         `;
 
-        const analysisResult = await analyzerModel.generateContent(analyzerPrompt);
+        // Wrap the API call in our retry helper
+        const analysisResult = await retryWithBackoff(() => analyzerModel.generateContent(analyzerPrompt));
         let analysis = JSON.parse(analysisResult.response.text());
 
         if (Array.isArray(analysis)) {
@@ -69,7 +85,6 @@ export async function POST(request: Request) {
         const safeSearchQuery = analysis.search_query || message;
 
         // --- STEP 2.5: LOG ANALYTICS (Async) ---
-        // FIX: Look up community by SLUG
         pool.query(
             `INSERT INTO chat_analytics (community_id, category, topic)
              SELECT id, $1, $2 FROM communities WHERE slug = $3`,
@@ -82,14 +97,13 @@ export async function POST(request: Request) {
 
         const searchTerms = (analysis.document_keywords || safeTopic).split(" ").filter((w: string) => w.length > 2);
 
-        // FIX: Filter by c.slug instead of c.name
         const fileSearchQuery = `
-            SELECT title, file_url 
+            SELECT title, file_url
             FROM community_downloads cd
             JOIN communities c ON cd.community_id = c.id
-            WHERE c.slug = $1 
+            WHERE c.slug = $1
             AND (
-                title ILIKE $2 OR category ILIKE $2 
+                title ILIKE $2 OR category ILIKE $2
                 ${searchTerms.length > 0 ? `OR title ILIKE $3` : ''}
             )
             LIMIT 5
@@ -101,13 +115,13 @@ export async function POST(request: Request) {
             ...(searchTerms.length > 0 ? [`%${searchTerms[0]}%`] : [])
         ];
 
+        // Wrap embedding call in retry helper
         const [embeddingResult, managerRes, filesRes] = await Promise.all([
-            embeddingModel.embedContent(safeSearchQuery),
-            // FIX: Lookup manager by community slug
+            retryWithBackoff(() => embeddingModel.embedContent(safeSearchQuery)),
             pool.query(`
-                SELECT m.name, m.email, m.phone 
-                FROM managers m 
-                JOIN communities c ON c.manager_id = m.id 
+                SELECT m.name, m.email, m.phone
+                FROM managers m
+                JOIN communities c ON c.manager_id = m.id
                 WHERE c.slug = $1
             `, [communitySlug]),
             pool.query(fileSearchQuery, fileParams)
@@ -118,7 +132,6 @@ export async function POST(request: Request) {
         const foundFiles = filesRes.rows;
 
         // --- STEP 4: VECTOR SEARCH (Knowledge Base) ---
-        // FIX: Lookup docs by community slug
         const vectorQuery = pool.query(
             `SELECT cd.content, c.name as community_name
              FROM community_docs cd
@@ -134,14 +147,14 @@ export async function POST(request: Request) {
         const contextDocs = vectorRes.rows.map(r => r.content).join("\n\n");
         const fileLinks = foundFiles.map(f => `- [Download ${f.title}](${f.file_url})`).join("\n");
         const hasFiles = foundFiles.length > 0;
-        // Use the actual community name from the DB result if available, otherwise fallback to slug
         const displayCommName = vectorRes.rows[0]?.community_name || communitySlug;
 
-        const chatModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+        // SWITCHED TO STABLE MODEL: gemini-1.5-flash-001
+        const chatModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash-001" });
 
         const systemPrompt = `
         You are the Community Focus Assistant for ${displayCommName}.
-        
+
         **MANAGER CONTACT:**
         - Name: ${manager.name}
         - Email: ${manager.email || OFFICE_EMAIL}
@@ -169,11 +182,11 @@ export async function POST(request: Request) {
         4. **GENERAL:** Answer based on the Knowledge Base. Keep it simple and helpful.
         `;
 
-        // --- STEP 6: GENERATE ---
-        const result = await chatModel.generateContent([
+        // --- STEP 6: GENERATE (With Retry) ---
+        const result = await retryWithBackoff(() => chatModel.generateContent([
             { text: systemPrompt },
             { text: `User Question: ${message}` }
-        ]);
+        ]));
 
         return NextResponse.json({ reply: result.response.text() });
 
