@@ -69,6 +69,12 @@ export default function ChatWidget() {
         e.preventDefault();
         if (!input.trim() || !selectedCommunity) return;
 
+        // --- CRITICAL FIX START ---
+        // 1. Find the correct Community Name (Backend expects Name, not Slug)
+        const activeComm = communities.find(c => c.slug === selectedCommunity);
+        const communityName = activeComm ? activeComm.name : selectedCommunity;
+        // --- CRITICAL FIX END ---
+
         const userMsg = input;
         setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
         setInput('');
@@ -81,7 +87,7 @@ export default function ChatWidget() {
                 body: JSON.stringify({
                     message: userMsg,
                     history: messages,
-                    communitySlug: selectedCommunity // Context
+                    communityName: communityName // Sending Name instead of Slug
                 })
             });
 
@@ -91,6 +97,7 @@ export default function ChatWidget() {
 
             setMessages(prev => [...prev, { role: 'bot', text: data.reply }]);
         } catch (error) {
+            console.error("Chat Error:", error);
             setMessages(prev => [...prev, { role: 'bot', text: "I'm having trouble connecting right now. Please try again." }]);
         } finally {
             setLoading(false);
