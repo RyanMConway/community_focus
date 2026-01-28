@@ -6,10 +6,10 @@ import {
     Mail, Building2, Trash2, CheckCircle, Plus, BookOpen,
     Upload, FileText, Loader, Filter, ShieldAlert, BarChart3,
     TrendingUp, MessageSquare, AlertCircle, RefreshCw, Users, Briefcase,
-    BrainCircuit, Search, Edit2, Calendar, Megaphone, HardHat, Bot, Menu, X
+    BrainCircuit, Search, Edit2, Calendar, Megaphone, HardHat, Bot
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { toast } from 'react-hot-toast'; // NEW IMPORT
+import { toast } from 'react-hot-toast';
 
 // --- TYPES ---
 interface Message {
@@ -169,9 +169,10 @@ export default function AdminDashboard() {
 
     const loadData = async () => {
         try {
+            // FIX: Use /api/admin/communities so "Global Knowledge" is included in the list
             const [msgData, commData, docData] = await Promise.all([
                 fetch('/api/admin/messages').then(res => res.json()),
-                fetch('/api/communities').then(res => res.json()),
+                fetch('/api/admin/communities').then(res => res.json()),
                 fetch('/api/admin/documents').then(res => res.json())
             ]);
             setMessages(msgData || []);
@@ -201,7 +202,7 @@ export default function AdminDashboard() {
         }
     };
 
-    // --- GENERIC HELPERS (With Toasts) ---
+    // --- GENERIC HELPERS ---
     const handleSaveGeneric = async (url: string, data: any, refreshFn: () => void, modalSetter: (v: boolean) => void) => {
         const method = data.id === 0 ? 'POST' : 'PUT';
         const loadToast = toast.loading("Saving...");
@@ -240,7 +241,7 @@ export default function AdminDashboard() {
         }
     };
 
-    // --- SPECIFIC HANDLERS (With Toasts) ---
+    // --- SPECIFIC HANDLERS ---
     const handleSaveCommunity = async (e: React.FormEvent) => {
         e.preventDefault();
         const method = editingComm.id === 0 ? 'POST' : 'PUT';
@@ -409,7 +410,7 @@ export default function AdminDashboard() {
                             { id: 'vendors', icon: HardHat, label: 'Vendors' },
                             { id: 'managers', icon: Users, label: 'Managers' },
                             { id: 'brain', icon: BrainCircuit, label: 'Brain' },
-                            { id: 'knowledge', icon: BookOpen, label: 'Docs' }, // Shortened label
+                            { id: 'knowledge', icon: BookOpen, label: 'Docs' },
                             { id: 'analytics', icon: BarChart3, label: 'Stats' },
                         ].map((tab) => (
                              <button
