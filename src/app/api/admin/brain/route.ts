@@ -5,8 +5,21 @@ import { checkAdminAuth } from '@/lib/checkAuth';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
+// --- HELPER: RETRY LOGIC ---
+async function retryWithBackoff<T>(fn: () => Promise<T>, retries = 3, delay = 2000): Promise<T> {
+    try {
+        return await fn();
+    } catch (error: any) {
+        if (retries > 0 && (error.status === 429 || error.message?.includes('429') || error.status === 503)) {
+            console.warn(`Rate limit hit. Retrying in ${delay}ms... (${retries} attempts left)`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            return retryWithBackoff(fn, retries - 1, delay * 2);
+        }
+        throw error;
+    }
+}
+
 export async function POST(request: Request) {
-    // 1. Security Check
     const auth = await checkAdminAuth();
     if (!auth.authorized) return auth.response;
 
@@ -14,13 +27,12 @@ export async function POST(request: Request) {
         const { query, community_id } = await request.json();
         if (!query) return NextResponse.json({ error: "Query required" }, { status: 400 });
 
-        // 2. Generate Embedding
-        // FIX: Switched to 'embedding-001' for maximum compatibility
-        const embeddingModel = genAI.getGenerativeModel({ model: "embedding-001" });
-        const result = await embeddingModel.embedContent(query);
+        // 2. Generate Embedding (With Retry)
+        const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
+        const result = await retryWithBackoff(() => embeddingModel.embedContent(query));
         const embedding = result.embedding.values;
 
-        // 3. Search Database (With Filter Logic)
+        // 3. Search Database
         const client = await pool.connect();
         let searchRes;
 
@@ -51,9 +63,8 @@ export async function POST(request: Request) {
 
         const sources = searchRes.rows;
 
-        // 4. "RAG" - Generate a Natural Language Answer
-        // FIX: Switched to 'gemini-1.0-pro' for maximum compatibility
-        const generativeModel = genAI.getGenerativeModel({ model: "gemini-1.0-pro" });
+        // 4. "RAG" - Generate Answer (With Retry)
+        const generativeModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
         const contextText = sources.map((s: any) => `SOURCE (${s.filename}): ${s.content}`).join("\n\n");
 
@@ -72,7 +83,7 @@ export async function POST(request: Request) {
             ${contextText}
         `;
 
-        const answerResult = await generativeModel.generateContent(prompt);
+        const answerResult = await retryWithBackoff(() => generativeModel.generateContent(prompt));
         const finalAnswer = answerResult.response.text();
 
         return NextResponse.json({
