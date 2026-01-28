@@ -30,8 +30,9 @@ export default function ChatWidget() {
     // Shimmy State
     const [isShimmying, setIsShimmying] = useState(false);
 
+    // --- UPDATED INITIAL MESSAGE ---
     const [messages, setMessages] = useState<{role: 'user' | 'bot', text: string}[]>([
-        { role: 'bot', text: "Hello! I am the Community Focus AI Assistant. I can answer questions about your specific community's rules, amenities, and payments. How can I help?" }
+        { role: 'bot', text: "Hello! I am Waldo, the Community Focus AI Assistant. I can answer questions about your specific community's rules, amenities, and payments. How can I help?" }
     ]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
@@ -69,11 +70,9 @@ export default function ChatWidget() {
         e.preventDefault();
         if (!input.trim() || !selectedCommunity) return;
 
-        // --- CRITICAL FIX START ---
         // 1. Find the correct Community Name (Backend expects Name, not Slug)
         const activeComm = communities.find(c => c.slug === selectedCommunity);
         const communityName = activeComm ? activeComm.name : selectedCommunity;
-        // --- CRITICAL FIX END ---
 
         const userMsg = input;
         setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
@@ -87,7 +86,7 @@ export default function ChatWidget() {
                 body: JSON.stringify({
                     message: userMsg,
                     history: messages,
-                    communityName: communityName // Sending Name instead of Slug
+                    communityName: communityName
                 })
             });
 
@@ -158,7 +157,7 @@ export default function ChatWidget() {
                                     <Sparkles className="w-5 h-5 text-blue-600" />
                                 </div>
                                 <div>
-                                    <h3 className="font-bold text-slate-800">Assistant</h3>
+                                    <h3 className="font-bold text-slate-800">Waldo</h3>
                                     <p className="text-xs text-slate-500 flex items-center gap-1">
                                         <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
                                         Online
