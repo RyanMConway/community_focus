@@ -5,8 +5,20 @@ import { checkAdminAuth } from '@/lib/checkAuth';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
+async function retryWithBackoff<T>(fn: () => Promise<T>, retries = 3, delay = 2000): Promise<T> {
+    try {
+        return await fn();
+    } catch (error: any) {
+        if (retries > 0 && (error.status === 429 || error.message?.includes('429') || error.status === 503)) {
+            console.warn(`Rate limit hit. Retrying in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            return retryWithBackoff(fn, retries - 1, delay * 2);
+        }
+        throw error;
+    }
+}
+
 export async function POST(request: Request) {
-    // 1. Security Check
     const auth = await checkAdminAuth();
     if (!auth.authorized) return auth.response;
 
@@ -14,46 +26,58 @@ export async function POST(request: Request) {
         const { query, community_id } = await request.json();
         if (!query) return NextResponse.json({ error: "Query required" }, { status: 400 });
 
-        // 2. Generate Embedding
-        // ROLLBACK: Using 'embedding-001'
-        const embeddingModel = genAI.getGenerativeModel({ model: "embedding-001" });
-        const result = await embeddingModel.embedContent(query);
-        const embedding = result.embedding.values;
+        // 1. Try Embedding
+        let embedding: number[] | null = null;
+        try {
+            // FIX: Using "gemini-embedding-001"
+            const embeddingModel = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
+            const result = await retryWithBackoff(() => embeddingModel.embedContent(query));
+            embedding = result.embedding.values;
+        } catch (e) {
+            console.warn("Brain Embedding Failed - Switching to Keyword Search Mode");
+            embedding = null;
+        }
 
-        // 3. Search Database (With Filter Logic)
+        // 2. Search Database (Vector OR Keyword)
         const client = await pool.connect();
-        let searchRes;
+        let sources: any[] = [];
 
         try {
-            if (community_id && community_id !== "") {
-                searchRes = await client.query(
-                    `SELECT cd.content, cd.filename, c.name as community_name, (cd.embedding <=> $1::vector) as distance
-                     FROM community_docs cd
-                     JOIN communities c ON cd.community_id = c.id
-                     WHERE cd.community_id = $2
-                     ORDER BY distance ASC
-                     LIMIT 5`,
-                    [JSON.stringify(embedding), community_id]
-                );
+            if (embedding) {
+                // Vector Search
+                const sql = `
+                    SELECT cd.content, cd.filename, c.name as community_name
+                    FROM community_docs cd
+                    JOIN communities c ON cd.community_id = c.id
+                    ${community_id ? `WHERE cd.community_id = $2` : ''}
+                    ORDER BY (cd.embedding <=> $1::vector) ASC
+                    LIMIT 5
+                `;
+                const params = community_id ? [JSON.stringify(embedding), community_id] : [JSON.stringify(embedding)];
+                const res = await client.query(sql, params);
+                sources = res.rows;
             } else {
-                searchRes = await client.query(
-                    `SELECT cd.content, cd.filename, c.name as community_name, (cd.embedding <=> $1::vector) as distance
-                     FROM community_docs cd
-                     JOIN communities c ON cd.community_id = c.id
-                     ORDER BY distance ASC
-                     LIMIT 5`,
-                    [JSON.stringify(embedding)]
-                );
+                // Keyword Search Fallback
+                console.log("Using Keyword Search Fallback for Brain...");
+                const sql = `
+                    SELECT cd.content, cd.filename, c.name as community_name
+                    FROM community_docs cd
+                    JOIN communities c ON cd.community_id = c.id
+                    WHERE (cd.content ILIKE $1 OR cd.filename ILIKE $1)
+                    ${community_id ? `AND cd.community_id = $2` : ''}
+                    LIMIT 5
+                `;
+                const params = community_id ? [`%${query}%`, community_id] : [`%${query}%`];
+                const res = await client.query(sql, params);
+                sources = res.rows;
             }
         } finally {
             client.release();
         }
 
-        const sources = searchRes.rows;
-
-        // 4. "RAG" - Generate a Natural Language Answer
-        // ROLLBACK: Using 'gemini-1.0-pro'
-        const generativeModel = genAI.getGenerativeModel({ model: "gemini-1.0-pro" });
+        // 3. Generate Answer
+        // FIX: Using "gemini-2.0-flash"
+        const generativeModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
         const contextText = sources.map((s: any) => `SOURCE (${s.filename}): ${s.content}`).join("\n\n");
 
@@ -61,22 +85,16 @@ export async function POST(request: Request) {
             You are an expert Community Association Manager assistant.
             Answer the user's question based strictly on the context provided below.
 
-            Rules:
-            1. If the answer is not in the context, state "I could not find that information in the documents."
-            2. Do not make up information.
-            3. Cite the filename in parentheses if you use information from a specific source.
-
             Question: ${query}
 
             Context:
-            ${contextText}
+            ${contextText || "No relevant documents found."}
         `;
 
-        const answerResult = await generativeModel.generateContent(prompt);
-        const finalAnswer = answerResult.response.text();
+        const answerResult = await retryWithBackoff(() => generativeModel.generateContent(prompt));
 
         return NextResponse.json({
-            answer: finalAnswer,
+            answer: answerResult.response.text(),
             sources: sources
         });
 
