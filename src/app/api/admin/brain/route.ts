@@ -29,10 +29,14 @@ export async function POST(request: Request) {
         // 1. Try Embedding
         let embedding: number[] | null = null;
         try {
-            // FIX: Using "gemini-embedding-001"
+            // Using "gemini-embedding-001" (Confirmed Available - 768 Dimensions)
             const embeddingModel = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
             const result = await retryWithBackoff(() => embeddingModel.embedContent(query));
             embedding = result.embedding.values;
+
+            if (embedding) {
+                console.log(`🧠 Brain Embedding Generated. Dimensions: ${embedding.length}`);
+            }
         } catch (e) {
             console.warn("Brain Embedding Failed - Switching to Keyword Search Mode");
             embedding = null;
@@ -45,19 +49,27 @@ export async function POST(request: Request) {
         try {
             if (embedding) {
                 // Vector Search
-                const sql = `
-                    SELECT cd.content, cd.filename, c.name as community_name
-                    FROM community_docs cd
-                    JOIN communities c ON cd.community_id = c.id
-                    ${community_id ? `WHERE cd.community_id = $2` : ''}
-                    ORDER BY (cd.embedding <=> $1::vector) ASC
-                    LIMIT 5
-                `;
-                const params = community_id ? [JSON.stringify(embedding), community_id] : [JSON.stringify(embedding)];
-                const res = await client.query(sql, params);
-                sources = res.rows;
-            } else {
-                // Keyword Search Fallback
+                try {
+                    const sql = `
+                        SELECT cd.content, cd.filename, c.name as community_name
+                        FROM community_docs cd
+                        JOIN communities c ON cd.community_id = c.id
+                        ${community_id ? `WHERE cd.community_id = $2` : ''}
+                        ORDER BY (cd.embedding <=> $1::vector) ASC
+                        LIMIT 5
+                    `;
+                    const params = community_id ? [JSON.stringify(embedding), community_id] : [JSON.stringify(embedding)];
+                    const res = await client.query(sql, params);
+                    sources = res.rows;
+                } catch (dbError: any) {
+                    console.error("❌ Brain Vector Search DB Error (Falling back to Keyword):", dbError.message);
+                    // Force null to trigger fallback below
+                    embedding = null;
+                }
+            }
+
+            // Fallback (if embedding failed OR if vector DB query failed)
+            if (!embedding) {
                 console.log("Using Keyword Search Fallback for Brain...");
                 const sql = `
                     SELECT cd.content, cd.filename, c.name as community_name
@@ -76,7 +88,6 @@ export async function POST(request: Request) {
         }
 
         // 3. Generate Answer
-        // FIX: Using "gemini-2.0-flash"
         const generativeModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
         const contextText = sources.map((s: any) => `SOURCE (${s.filename}): ${s.content}`).join("\n\n");

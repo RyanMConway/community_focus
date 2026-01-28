@@ -7,7 +7,6 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 // OFFICE FALLBACK
 const OFFICE_PHONE = "(919) 564-9134";
 const OFFICE_EMAIL = "info@communityfocusnc.com";
-const MASTER_WORK_ORDER_URL = "https://cfnc.cincwebaxis.com/workorders";
 
 // --- HELPER: RETRY LOGIC ---
 async function retryWithBackoff<T>(fn: () => Promise<T>, retries = 3, delay = 2000): Promise<T> {
@@ -72,13 +71,21 @@ export async function POST(request: Request) {
         const safeTopic = analysis.topic || "General Query";
         const safeSearchQuery = analysis.search_query || message;
 
-        // --- STEP 2: EMBEDDINGS (Using Confirmed Model) ---
+        // --- STEP 2: EMBEDDINGS ---
+        // Using "gemini-embedding-001" (Confirmed Available - 768 Dimensions)
         let embedding: number[] | null = null;
         try {
-            // FIX: Using "gemini-embedding-001" as confirmed by your test script
             const embeddingModel = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
             const result = await retryWithBackoff(() => embeddingModel.embedContent(safeSearchQuery));
             embedding = result.embedding.values;
+
+            // DIAGNOSTIC LOG
+            if (embedding) {
+                console.log(`✅ Embedding Generated. Dimensions: ${embedding.length}`);
+                if (embedding.length !== 768) {
+                    console.error(`❌ CRITICAL: Expected 768 dimensions, got ${embedding.length}. DB Insert will likely fail.`);
+                }
+            }
         } catch (e) {
             console.warn("Embedding Failed (Switching to Keyword Search):", e);
             embedding = null;
@@ -87,21 +94,25 @@ export async function POST(request: Request) {
         // --- STEP 3: SEARCH DATABASE ---
         let vectorRes;
 
-        if (embedding) {
-            // Vector Search
-            vectorRes = await pool.query(
-                `SELECT cd.content, c.name as community_name
-                 FROM community_docs cd
-                 JOIN communities c ON cd.community_id = c.id
-                 WHERE c.slug = $1
-                 ORDER BY (cd.embedding <=> $2::vector) ASC
-                 LIMIT 6`,
-                [communitySlug, JSON.stringify(embedding)]
-            );
-        } else {
-            // Keyword Fallback
-            console.log("Using Keyword Search Fallback...");
-            // Simple keyword extraction fallback
+        // Wrap DB query in try/catch to handle Vector Dimension Mismatch specifically
+        try {
+            if (embedding) {
+                // Vector Search
+                vectorRes = await pool.query(
+                    `SELECT cd.content, c.name as community_name
+                     FROM community_docs cd
+                     JOIN communities c ON cd.community_id = c.id
+                     WHERE c.slug = $1
+                     ORDER BY (cd.embedding <=> $2::vector) ASC
+                     LIMIT 6`,
+                    [communitySlug, JSON.stringify(embedding)]
+                );
+            } else {
+                throw new Error("No embedding generated");
+            }
+        } catch (dbError: any) {
+            console.error("⚠️ Vector Search Failed (Falling back to Keywords):", dbError.message);
+            // Fallback to Keyword Search
             const keyword = safeTopic.split(' ').find((w: string) => w.length > 4) || message;
             vectorRes = await pool.query(
                 `SELECT cd.content, c.name as community_name
@@ -128,12 +139,12 @@ export async function POST(request: Request) {
 
         const manager = managerRes.rows[0] || { name: 'The Office', email: OFFICE_EMAIL, phone: OFFICE_PHONE };
         const foundFiles = filesRes.rows;
-        const contextDocs = vectorRes.rows.map(r => r.content).join("\n\n");
+        // Handle case where vectorRes might be undefined if both attempts completely crash (unlikely but safe)
+        const contextDocs = vectorRes?.rows ? vectorRes.rows.map(r => r.content).join("\n\n") : "";
         const fileLinks = foundFiles.map(f => `- [Download ${f.title}](${f.file_url})`).join("\n");
-        const displayCommName = vectorRes.rows[0]?.community_name || communitySlug;
+        const displayCommName = vectorRes?.rows[0]?.community_name || communitySlug;
 
         // --- STEP 4: GENERATE ANSWER ---
-        // Using gemini-2.0-flash (Confirmed Available)
         const chatModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
         const systemPrompt = `
