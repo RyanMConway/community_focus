@@ -9,15 +9,15 @@ const OFFICE_PHONE = "(919) 564-9134";
 const OFFICE_EMAIL = "info@communityfocusnc.com";
 const MASTER_WORK_ORDER_URL = "https://cfnc.cincwebaxis.com/workorders";
 
-// --- HELPER: RETRY LOGIC (Solves 429 Errors) ---
-async function retryWithBackoff<T>(fn: () => Promise<T>, retries = 3, delay = 2000): Promise<T> {
+// --- HELPER: RETRY LOGIC ---
+async function retryWithBackoff<T>(fn: () => Promise<T>, retries = 3, delay = 1000): Promise<T> {
     try {
         return await fn();
     } catch (error: any) {
-        if (retries > 0 && (error.status === 429 || error.message?.includes('429') || error.status === 503)) {
+        if (retries > 0 && (error.status === 429 || error.message?.includes('429'))) {
             console.warn(`Rate limit hit. Retrying in ${delay}ms... (${retries} attempts left)`);
             await new Promise(resolve => setTimeout(resolve, delay));
-            return retryWithBackoff(fn, retries - 1, delay * 2); // Exponential backoff: 2s -> 4s -> 8s
+            return retryWithBackoff(fn, retries - 1, delay * 2);
         }
         throw error;
     }
@@ -41,8 +41,9 @@ export async function POST(request: Request) {
         const historyText = historyLines.join('\n');
 
         // --- STEP 2: ANALYZE INTENT (With Retry) ---
+        // ROLLBACK: Using 'gemini-1.0-pro'
         const analyzerModel = genAI.getGenerativeModel({
-            model: "gemini-2.0-flash", // Using the working model
+            model: "gemini-1.0-pro",
             generationConfig: { responseMimeType: "application/json" }
         });
 
@@ -75,8 +76,6 @@ export async function POST(request: Request) {
             analysis = analysis[0];
         }
 
-        console.log("Analysis (Normalized):", analysis);
-
         const safeCategory = analysis.category || "General";
         const safeTopic = analysis.topic || "General Query";
         const safeSearchQuery = analysis.search_query || message;
@@ -90,7 +89,8 @@ export async function POST(request: Request) {
 
 
         // --- STEP 3: DATA FETCHING (Parallel) ---
-        const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
+        // ROLLBACK: Using 'embedding-001'
+        const embeddingModel = genAI.getGenerativeModel({ model: "embedding-001" });
 
         const searchTerms = (analysis.document_keywords || safeTopic).split(" ").filter((w: string) => w.length > 2);
 
@@ -112,7 +112,6 @@ export async function POST(request: Request) {
             ...(searchTerms.length > 0 ? [`%${searchTerms[0]}%`] : [])
         ];
 
-        // Wrap embedding call in retry helper
         const [embeddingResult, managerRes, filesRes] = await Promise.all([
             retryWithBackoff(() => embeddingModel.embedContent(safeSearchQuery)),
             pool.query(`
@@ -146,7 +145,8 @@ export async function POST(request: Request) {
         const hasFiles = foundFiles.length > 0;
         const displayCommName = vectorRes.rows[0]?.community_name || communitySlug;
 
-        const chatModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+        // ROLLBACK: Using 'gemini-1.0-pro'
+        const chatModel = genAI.getGenerativeModel({ model: "gemini-1.0-pro" });
 
         const systemPrompt = `
         You are the Community Focus Assistant for ${displayCommName}.
