@@ -42,9 +42,9 @@ export async function POST(request: Request) {
         const historyText = historyLines.join('\n');
 
         // --- STEP 2: ANALYZE INTENT (With Retry) ---
-        // SWITCHED TO STABLE MODEL: gemini-1.5-flash-001
+        // FIX: Using the standard stable alias 'gemini-1.5-flash'
         const analyzerModel = genAI.getGenerativeModel({
-            model: "gemini-1.5-flash-001",
+            model: "gemini-1.5-flash",
             generationConfig: { responseMimeType: "application/json" }
         });
 
@@ -149,8 +149,8 @@ export async function POST(request: Request) {
         const hasFiles = foundFiles.length > 0;
         const displayCommName = vectorRes.rows[0]?.community_name || communitySlug;
 
-        // SWITCHED TO STABLE MODEL: gemini-1.5-flash-001
-        const chatModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash-001" });
+        // FIX: Using the standard stable alias 'gemini-1.5-flash'
+        const chatModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
         const systemPrompt = `
         You are the Community Focus Assistant for ${displayCommName}.
