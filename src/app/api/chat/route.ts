@@ -10,7 +10,6 @@ const OFFICE_EMAIL = "info@communityfocusnc.com";
 const MASTER_WORK_ORDER_URL = "https://cfnc.cincwebaxis.com/workorders";
 
 // --- HELPER: RETRY LOGIC ---
-// This attempts the API call up to 3 times if it hits a rate limit (429)
 async function retryWithBackoff<T>(fn: () => Promise<T>, retries = 3, delay = 1000): Promise<T> {
     try {
         return await fn();
@@ -42,9 +41,9 @@ export async function POST(request: Request) {
         const historyText = historyLines.join('\n');
 
         // --- STEP 2: ANALYZE INTENT (With Retry) ---
-        // FIX: Using the standard stable alias 'gemini-1.5-flash'
+        // FIX: Switched to 'gemini-1.0-pro' for maximum compatibility
         const analyzerModel = genAI.getGenerativeModel({
-            model: "gemini-1.5-flash",
+            model: "gemini-1.0-pro",
             generationConfig: { responseMimeType: "application/json" }
         });
 
@@ -70,7 +69,6 @@ export async function POST(request: Request) {
         }
         `;
 
-        // Wrap the API call in our retry helper
         const analysisResult = await retryWithBackoff(() => analyzerModel.generateContent(analyzerPrompt));
         let analysis = JSON.parse(analysisResult.response.text());
 
@@ -93,7 +91,8 @@ export async function POST(request: Request) {
 
 
         // --- STEP 3: DATA FETCHING (Parallel) ---
-        const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
+        // FIX: Switched to 'embedding-001' for maximum compatibility
+        const embeddingModel = genAI.getGenerativeModel({ model: "embedding-001" });
 
         const searchTerms = (analysis.document_keywords || safeTopic).split(" ").filter((w: string) => w.length > 2);
 
@@ -115,7 +114,6 @@ export async function POST(request: Request) {
             ...(searchTerms.length > 0 ? [`%${searchTerms[0]}%`] : [])
         ];
 
-        // Wrap embedding call in retry helper
         const [embeddingResult, managerRes, filesRes] = await Promise.all([
             retryWithBackoff(() => embeddingModel.embedContent(safeSearchQuery)),
             pool.query(`
@@ -149,8 +147,8 @@ export async function POST(request: Request) {
         const hasFiles = foundFiles.length > 0;
         const displayCommName = vectorRes.rows[0]?.community_name || communitySlug;
 
-        // FIX: Using the standard stable alias 'gemini-1.5-flash'
-        const chatModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        // FIX: Switched to 'gemini-1.0-pro' for maximum compatibility
+        const chatModel = genAI.getGenerativeModel({ model: "gemini-1.0-pro" });
 
         const systemPrompt = `
         You are the Community Focus Assistant for ${displayCommName}.
