@@ -1,11 +1,11 @@
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import pool from '@/lib/db';
-import { FileText, Download, Phone, Mail, MapPin, ExternalLink } from 'lucide-react';
+import { FileText, Download, Phone, Mail, MapPin } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ChatWidget from '@/components/ChatWidget';
-import AlertBanner from '@/components/AlertBanner'; //
+import AlertBanner from '@/components/AlertBanner';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +19,6 @@ async function getData(slug: string) {
         const managerRes = await client.query('SELECT * FROM managers WHERE id = $1', [community.manager_id]);
         const manager = managerRes.rows[0];
 
-        // --- FETCH DOCUMENTS ---
         const docsRes = await client.query(
             `SELECT * FROM community_downloads
              WHERE community_id = $1
@@ -28,20 +27,7 @@ async function getData(slug: string) {
             [community.id]
         );
 
-        // --- FETCH ACTIVE ALERT ---
-        // We fetch the most recent active alert that is within its valid time range
-        const alertRes = await client.query(
-            `SELECT * FROM alerts
-             WHERE community_id = $1
-             AND is_active = true
-             AND (start_time IS NULL OR start_time <= NOW())
-             AND (end_time IS NULL OR end_time >= NOW())
-             ORDER BY created_at DESC LIMIT 1`,
-            [community.id]
-        );
-        const alert = alertRes.rows[0] || null;
-
-        return { community, manager, documents: docsRes.rows, alert };
+        return { community, manager, documents: docsRes.rows };
     } finally {
         client.release();
     }
@@ -52,7 +38,7 @@ export default async function CommunityPage({ params }: { params: Promise<{ slug
     const data = await getData(slug);
 
     if (!data) return notFound();
-    const { community, manager, documents, alert } = data;
+    const { community, manager, documents } = data;
 
     // Group Docs by Category
     const groupedDocs = documents.reduce((acc: any, doc: any) => {
@@ -67,19 +53,18 @@ export default async function CommunityPage({ params }: { params: Promise<{ slug
             <Navbar />
 
             {/* --- ALERT BANNER --- */}
-            {alert && (
-                <AlertBanner
-                    message={alert.message}
-                    type={alert.type}
-                    startTime={alert.start_time}
-                    endTime={alert.end_time}
-                />
-            )}
+            {/* Now using the columns directly from the community table */}
+            <AlertBanner
+                message={community.alert_message}
+                type={community.alert_type}
+                startTime={community.alert_start_time}
+                endTime={community.alert_end_time}
+            />
 
-            {/* --- HERO SECTION (Redesigned) --- */}
+            {/* --- HERO SECTION --- */}
             <div className="relative h-[450px] w-full flex items-center justify-center overflow-hidden bg-brand-dark">
 
-                {/* 1. Background Image with Fade */}
+                {/* 1. Background Image */}
                 {community.image_url ? (
                     <Image
                         src={community.image_url}
@@ -89,14 +74,13 @@ export default async function CommunityPage({ params }: { params: Promise<{ slug
                         priority
                     />
                 ) : (
-                    // Fallback gradient if no image exists
                     <div className="absolute inset-0 bg-hero-gradient"></div>
                 )}
 
-                {/* 2. Gradient Overlay for readability (Matches site branding) */}
+                {/* 2. Gradient Overlay */}
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/50 to-slate-900/20"></div>
 
-                {/* 3. Texture Pattern (Matches Home Page) */}
+                {/* 3. Texture Pattern */}
                 <div className="absolute inset-0 bg-grid-white opacity-10 pointer-events-none"></div>
 
                 {/* 4. Content */}
