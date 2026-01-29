@@ -99,12 +99,12 @@ function TeamCard({ member }: { member: any }) {
                         className="object-cover object-top group-hover:scale-105 transition-transform duration-500"
                     />
                 ) : member.image && isSilhouette ? (
-                    // OPTION B: SILHOUETTE PNG (Smaller, Centered on Background)
+                    // OPTION B: SILHOUETTE PNG (Mid-Size, Centered on Background)
                     <div className="w-full h-full flex items-end justify-center bg-gradient-to-b from-slate-50 to-slate-200/50">
-                        {/* Reduced size using 'w-28 h-28' (112px).
-                            opacity-80 softens the black/dark silhouette slightly.
-                         */}
-                        <div className="relative w-28 h-28 mb-0">
+                        {/* UPDATED SIZE: w-48 h-48 (192px)
+                            This is the "middle ground" size.
+                        */}
+                        <div className="relative w-48 h-48 mb-0">
                             <Image
                                 src={member.image}
                                 alt={member.name}
