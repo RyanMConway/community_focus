@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image'; // IMPORT ADDED
 import { Shield, Hammer, Users, MapPin, ArrowRight, CheckCircle2 } from 'lucide-react';
 import Reveal from "@/components/Reveal";
 import ShinyButton from "@/components/ShinyButton";
@@ -6,7 +7,7 @@ import Testimonials from "@/components/Testimonials";
 import FAQ from "@/components/FAQ";
 import pool from '@/lib/db';
 import { getGoogleReviews } from '@/lib/google-reviews';
-import HomeQuestionnaire from "@/components/HomeQuestionnaire"; // IMPORT ADDED
+import HomeQuestionnaire from "@/components/HomeQuestionnaire";
 
 async function getFeaturedCommunities() {
   const client = await pool.connect();
@@ -25,15 +26,23 @@ export default async function Home() {
   return (
       <main className="min-h-screen bg-slate-50 selection:bg-brand selection:text-white">
 
-        {/* HERO SECTION */}
-        <div className="relative pt-40 pb-40 lg:pt-48 lg:pb-48 overflow-hidden bg-hero-gradient">
+        {/* HERO SECTION - Updated with Background Image */}
+        <div className="relative pt-40 pb-40 lg:pt-48 lg:pb-48 overflow-hidden">
 
-          {/* Subtle Grid Pattern Overlay */}
-          <div className="absolute inset-0 bg-grid-white opacity-20 pointer-events-none"></div>
+          {/* BACKGROUND IMAGE */}
+          <Image
+            src="https://images.unsplash.com/photo-1592595896551-12b371d546d5?q=80&w=2670&auto=format&fit=crop"
+            alt="Peaceful Suburban Neighborhood with beautiful homes"
+            fill
+            priority
+            className="object-cover object-center"
+          />
 
-          {/* Animated Background Shapes (Refined) */}
-          <div className="absolute top-1/4 right-0 w-[500px] h-[500px] bg-brand-accent/30 rounded-full blur-[100px] animate-float pointer-events-none"></div>
-          <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-[100px] animate-float-delayed pointer-events-none"></div>
+          {/* Dark Overlay for Text Readability */}
+          <div className="absolute inset-0 bg-slate-900/60 z-0"></div>
+
+          {/* Subtle Grid Pattern Overlay (Optional - kept from previous design) */}
+          <div className="absolute inset-0 bg-grid-white opacity-10 pointer-events-none z-0"></div>
 
           <div className="relative z-10 container mx-auto px-4 text-center text-white flex flex-col items-center">
 
@@ -60,19 +69,19 @@ export default async function Home() {
               </p>
             </Reveal>
 
-            {/* REPLACED BUTTONS WITH NEW QUESTIONNAIRE COMPONENT */}
+            {/* Questionnaire Component */}
             <Reveal delay={0.3} width="100%">
               <HomeQuestionnaire />
             </Reveal>
 
           </div>
 
-          {/* Decorative Bottom Wave/Fade */}
-          <div className="absolute bottom-0 left-0 w-full h-24 bg-gradient-to-t from-slate-50 to-transparent"></div>
+          {/* Decorative Bottom Wave/Fade to blend into next section */}
+          <div className="absolute bottom-0 left-0 w-full h-32 bg-gradient-to-t from-slate-50 to-transparent z-10"></div>
         </div>
 
-        {/* COMMUNITIES GRID - Floating Card Effect */}
-        <div className="container mx-auto px-4 -mt-16 relative z-20"> {/* Adjusted margin-top slightly */}
+        {/* COMMUNITIES GRID */}
+        <div className="container mx-auto px-4 -mt-16 relative z-20">
           <Reveal width="100%">
             <div className="bg-white/80 backdrop-blur-xl p-8 md:p-12 rounded-3xl shadow-2xl shadow-slate-200/50 border border-white/50 text-center mb-24">
               <h3 className="text-2xl font-bold text-slate-800 mb-3">Find Your Community</h3>
