@@ -22,7 +22,7 @@ const staff = [
     {
         name: "Lisa Austin",
         title: "Association Services",
-        image: "lisa-austin.jpg",
+        image: "/team/lisa-austin.jpg",
         bio: "Providing essential support to ensure our communities run smoothly.",
         email: "Lisa@CommunityFocusNC.com",
         phone: "(919) 564-9134 ext. 106"
@@ -38,7 +38,7 @@ const staff = [
     {
         name: "Amy Ghiloni",
         title: "Community Association Manager",
-        image: "amy-ghiloni.png",
+        image: "/team/amy-ghiloni.png",
         bio: "Dedicated to supporting board members and homeowners with clear communication.",
         email: "Amy@CommunityFocusNC.com",
         phone: "(919) 564-9134 ext. 109"
@@ -70,7 +70,7 @@ const staff = [
     {
         name: "Wade Womble",
         title: "Community Association Manager",
-        image: "wade-womble.jpg",
+        image: "/team/wade-womble.jpg",
         bio: "Focused on efficient community management and solving complex association challenges.",
         email: "Wade@CommunityFocusNC.com",
         phone: "(919) 564-9134 ext. 108"
@@ -195,9 +195,12 @@ export default function AboutPage() {
                         </Reveal>
                     </div>
 
-                    {/* A. President Section (Centered, Alone) */}
+                    {/* A. President Section (Centered, Exactly Same Card Width as Others) */}
                     <div className="flex justify-center mb-12">
-                        <div className="w-full max-w-sm">
+                        {/* UPDATED: Using the exact same width classes as the grid items below
+                          to ensure perfect visual consistency.
+                        */}
+                        <div className="w-full md:w-[calc(33.333%-1.5rem)] min-w-[300px] max-w-sm">
                             <Reveal delay={0}>
                                 <TeamCard member={president} />
                             </Reveal>
