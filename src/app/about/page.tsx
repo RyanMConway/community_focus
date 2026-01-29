@@ -104,7 +104,7 @@ function TeamCard({ member }: { member: any }) {
                         {/* UPDATED SIZE: w-48 h-48 (192px)
                             This is the "middle ground" size.
                         */}
-                        <div className="relative w-48 h-48 mb-0">
+                        <div className="relative w-72 h-72 mb-0">
                             <Image
                                 src={member.image}
                                 alt={member.name}
