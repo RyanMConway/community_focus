@@ -53,7 +53,6 @@ export default async function CommunityPage({ params }: { params: Promise<{ slug
             <Navbar />
 
             {/* --- ALERT BANNER --- */}
-            {/* Now using the columns directly from the community table */}
             <AlertBanner
                 message={community.alert_message}
                 type={community.alert_type}
@@ -98,9 +97,12 @@ export default async function CommunityPage({ params }: { params: Promise<{ slug
                 </div>
             </div>
 
+            {/* MAIN LAYOUT GRID */}
+            {/* -mt-16 pulls the content up to overlap the hero. */}
             <div className="max-w-7xl mx-auto px-6 py-12 grid grid-cols-1 lg:grid-cols-3 gap-12 -mt-16 relative z-20">
 
-                {/* Left Column: Info & Manager */}
+                {/* LEFT COLUMN: Info & Manager */}
+                {/* This STAYS pulled up to overlap the hero (looks nice because it's in a white card) */}
                 <div className="space-y-8">
                     {/* Manager Card */}
                     <div className="bg-white p-6 rounded-2xl shadow-xl shadow-slate-200/50 border border-white/50 backdrop-blur-sm">
@@ -157,8 +159,9 @@ export default async function CommunityPage({ params }: { params: Promise<{ slug
                     </div>
                 </div>
 
-                {/* Right Column: Documents */}
-                <div className="lg:col-span-2 space-y-6">
+                {/* RIGHT COLUMN: Documents */}
+                {/* FIX: added lg:mt-24 to push this column down so the title doesn't overlap the hero image */}
+                <div className="lg:col-span-2 space-y-6 lg:mt-24">
                     <div className="flex items-center gap-3 mb-2">
                         <div className="h-8 w-1 bg-brand rounded-full"></div>
                         <h2 className="text-3xl font-serif font-bold text-slate-800">Community Documents</h2>
