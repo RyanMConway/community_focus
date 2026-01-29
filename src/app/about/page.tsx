@@ -22,7 +22,7 @@ const staff = [
     {
         name: "Lisa Austin",
         title: "Association Services",
-        image: null,
+        image: "lisa-austin.jpg",
         bio: "Providing essential support to ensure our communities run smoothly.",
         email: "Lisa@CommunityFocusNC.com",
         phone: "(919) 564-9134 ext. 106"
@@ -38,7 +38,7 @@ const staff = [
     {
         name: "Amy Ghiloni",
         title: "Community Association Manager",
-        image: null,
+        image: "amy-ghiloni.png",
         bio: "Dedicated to supporting board members and homeowners with clear communication.",
         email: "Amy@CommunityFocusNC.com",
         phone: "(919) 564-9134 ext. 109"
@@ -70,7 +70,7 @@ const staff = [
     {
         name: "Wade Womble",
         title: "Community Association Manager",
-        image: null,
+        image: "wade-womble.jpg",
         bio: "Focused on efficient community management and solving complex association challenges.",
         email: "Wade@CommunityFocusNC.com",
         phone: "(919) 564-9134 ext. 108"
