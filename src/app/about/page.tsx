@@ -49,7 +49,7 @@ const staff = [
     {
         name: "Tracy Lynn",
         title: "Compliance Manager",
-        image: null,
+        image: "/team/silhouette.png",
         bio: "Ensuring community standards are met with fairness and consistency.",
         email: "Tracy@CommunityFocusNC.com",
         phone: null
@@ -57,7 +57,7 @@ const staff = [
     {
         name: "Tristan McInturff",
         title: "On-Site Inspections / Compliance",
-        image: null,
+        image: "/team/silhouette.png",
         bio: "Conducting thorough on-site inspections to maintain community value.",
         email: "Tristan@CommunityFocusNC.com",
         phone: null
@@ -65,7 +65,7 @@ const staff = [
     {
         name: "Shan Wofford",
         title: "Assistant Manager",
-        image: null,
+        image: "/team/silhouette.png",
         bio: "Focused on efficient community management and solving complex association challenges.",
         email: "Shan@CommunityFocusNC.com",
         phone: "(540) 632-6388"
