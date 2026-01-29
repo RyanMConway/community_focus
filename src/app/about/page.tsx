@@ -1,5 +1,5 @@
 import Image from 'next/image';
-import { Mail, Phone, Shield, Users, Heart, User } from 'lucide-react'; // Added User icon
+import { Mail, Phone, Shield, Users, Heart, User } from 'lucide-react';
 import Reveal from '@/components/Reveal';
 
 // 1. Define the President separately
@@ -12,7 +12,7 @@ const president = {
     phone: "(919) 564-9134 ext. 101"
 };
 
-// 2. Define the rest of the team (Sorted by Last Name)
+// 2. Define the rest of the team
 const staff = [
     {
         name: "Lisa Austin",
@@ -82,23 +82,41 @@ const staff = [
 
 // Reusable Card Component
 function TeamCard({ member }: { member: any }) {
+    // Check if this card uses the generic silhouette file
+    const isSilhouette = member.image === '/team/silhouette.png';
+
     return (
         <div className="group bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-md transition-all h-full flex flex-col">
 
             {/* Image Area */}
             <div className="relative aspect-[3/4] w-full bg-slate-100 overflow-hidden flex items-center justify-center">
-                {member.image ? (
+                {member.image && !isSilhouette ? (
+                    // OPTION A: REAL HEADSHOT (Full Bleed)
                     <Image
                         src={member.image}
                         alt={member.name}
                         fill
                         className="object-cover object-top group-hover:scale-105 transition-transform duration-500"
                     />
+                ) : member.image && isSilhouette ? (
+                    // OPTION B: SILHOUETTE PNG (Smaller, Centered on Background)
+                    <div className="w-full h-full flex items-end justify-center bg-gradient-to-b from-slate-50 to-slate-200/50">
+                        {/* Reduced size using 'w-28 h-28' (112px).
+                            opacity-80 softens the black/dark silhouette slightly.
+                         */}
+                        <div className="relative w-28 h-28 mb-0">
+                            <Image
+                                src={member.image}
+                                alt={member.name}
+                                fill
+                                className="object-contain object-bottom opacity-80"
+                            />
+                        </div>
+                    </div>
                 ) : (
-                    // --- UPDATED PLACEHOLDER: PROFESSIONAL SILHOUETTE ---
+                    // OPTION C: FALLBACK ICON (If image is null)
                     <div className="w-full h-full flex items-end justify-center bg-gradient-to-b from-slate-100 to-slate-200">
-                         {/* Large silhouette icon positioned at the bottom to look like a bust */}
-                        <User className="w-40 h-40 text-slate-300/80 translate-y-4" strokeWidth={1} />
+                        <User className="w-24 h-24 text-slate-300/80 mb-0" strokeWidth={1} />
                     </div>
                 )}
             </div>
@@ -197,7 +215,7 @@ export default function AboutPage() {
                         </Reveal>
                     </div>
 
-                    {/* A. President Section (Centered, Same width as others) */}
+                    {/* A. President Section (Centered) */}
                     <div className="flex justify-center mb-12">
                         <div className="w-full md:w-[calc(33.333%-1.5rem)] min-w-[300px] max-w-sm">
                             <Reveal delay={0}>
