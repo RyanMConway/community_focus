@@ -6,6 +6,7 @@ import Testimonials from "@/components/Testimonials";
 import FAQ from "@/components/FAQ";
 import pool from '@/lib/db';
 import { getGoogleReviews } from '@/lib/google-reviews';
+import HomeQuestionnaire from "@/components/HomeQuestionnaire"; // IMPORT ADDED
 
 async function getFeaturedCommunities() {
   const client = await pool.connect();
@@ -25,7 +26,7 @@ export default async function Home() {
       <main className="min-h-screen bg-slate-50 selection:bg-brand selection:text-white">
 
         {/* HERO SECTION */}
-        <div className="relative pt-40 pb-40 lg:pt-56 lg:pb-56 overflow-hidden bg-hero-gradient">
+        <div className="relative pt-40 pb-40 lg:pt-48 lg:pb-48 overflow-hidden bg-hero-gradient">
 
           {/* Subtle Grid Pattern Overlay */}
           <div className="absolute inset-0 bg-grid-white opacity-20 pointer-events-none"></div>
@@ -53,21 +54,15 @@ export default async function Home() {
             </Reveal>
 
             <Reveal delay={0.2}>
-              <p className="text-lg md:text-xl text-blue-100/90 max-w-2xl mx-auto mb-12 font-light leading-relaxed">
+              <p className="text-lg md:text-xl text-blue-100/90 max-w-2xl mx-auto mb-10 font-light leading-relaxed">
                 We handle the heavy lifting of association management with transparency,
                 modern technology, and a personal touch.
               </p>
             </Reveal>
 
-            <Reveal delay={0.3}>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <ShinyButton href="/contact">
-                  Request a Proposal
-                </ShinyButton>
-                <Link href="/services" className="px-8 py-4 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold backdrop-blur-sm transition-all hover:-translate-y-0.5">
-                  Explore Services
-                </Link>
-              </div>
+            {/* REPLACED BUTTONS WITH NEW QUESTIONNAIRE COMPONENT */}
+            <Reveal delay={0.3} width="100%">
+              <HomeQuestionnaire />
             </Reveal>
 
           </div>
@@ -77,7 +72,7 @@ export default async function Home() {
         </div>
 
         {/* COMMUNITIES GRID - Floating Card Effect */}
-        <div className="container mx-auto px-4 -mt-24 relative z-20">
+        <div className="container mx-auto px-4 -mt-16 relative z-20"> {/* Adjusted margin-top slightly */}
           <Reveal width="100%">
             <div className="bg-white/80 backdrop-blur-xl p-8 md:p-12 rounded-3xl shadow-2xl shadow-slate-200/50 border border-white/50 text-center mb-24">
               <h3 className="text-2xl font-bold text-slate-800 mb-3">Find Your Community</h3>
@@ -154,7 +149,7 @@ export default async function Home() {
                 <Testimonials reviews={reviews} />
               </Reveal>
 
-              {/* NEW: See All Reviews Button */}
+              {/* See All Reviews Button */}
               <Reveal delay={0.3}>
                 <div className="flex justify-center mt-12">
                   <Link
