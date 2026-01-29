@@ -1,5 +1,5 @@
 import Image from 'next/image';
-import { Mail, Phone, Shield, Users, Heart } from 'lucide-react'; // Added Phone icon
+import { Mail, Phone, Shield, Users, Heart } from 'lucide-react';
 import Reveal from '@/components/Reveal';
 
 // Helper to get initials for placeholder
@@ -8,6 +8,7 @@ const getInitials = (name: string) => {
 };
 
 const teamMembers = [
+    // 1. President (Top)
     {
         name: "Josh Lindgren",
         title: "President",
@@ -15,6 +16,23 @@ const teamMembers = [
         bio: "Expert in property maintenance and vendor coordination, ensuring that your community always looks its best.",
         email: "Josh@communityfocusnc.com",
         phone: "(919) 564-9134 ext. 101"
+    },
+    // 2. Alphabetical Order for the rest
+    {
+        name: "Amy Ghiloni",
+        title: "Community Association Manager",
+        image: null,
+        bio: "Dedicated to supporting board members and homeowners with clear communication.",
+        email: "Amy@CommunityFocusNC.com",
+        phone: "(919) 564-9134 ext. 109"
+    },
+    {
+        name: "Lisa Austin",
+        title: "Association Services",
+        image: null,
+        bio: "Providing essential support to ensure our communities run smoothly.",
+        email: "Lisa@CommunityFocusNC.com",
+        phone: "(919) 564-9134 ext. 106"
     },
     {
         name: "Madison Kichline",
@@ -33,12 +51,20 @@ const teamMembers = [
         phone: "(919) 564-9134 ext. 104"
     },
     {
-        name: "Amy Ghiloni",
-        title: "Community Association Manager",
-        image: null, // Placeholder will be used
-        bio: " dedicated to supporting board members and homeowners with clear communication.",
-        email: "Amy@CommunityFocusNC.com",
-        phone: "(919) 564-9134 ext. 109"
+        name: "Tracy Lynn",
+        title: "Compliance Manager",
+        image: null,
+        bio: "Ensuring community standards are met with fairness and consistency.",
+        email: "Tracy@CommunityFocusNC.com",
+        phone: null
+    },
+    {
+        name: "Tristan McInturff",
+        title: "On-Site Inspections / Compliance",
+        image: null,
+        bio: "Conducting thorough on-site inspections to maintain community value.",
+        email: "Tristan@CommunityFocusNC.com",
+        phone: null
     },
     {
         name: "Wade Womble",
@@ -47,30 +73,6 @@ const teamMembers = [
         bio: "Focused on efficient community management and solving complex association challenges.",
         email: "Wade@CommunityFocusNC.com",
         phone: "(919) 564-9134 ext. 108"
-    },
-    {
-        name: "Lisa Austin",
-        title: "Association Services",
-        image: null,
-        bio: "Providing essential support to ensure our communities run smoothly.",
-        email: "Lisa@CommunityFocusNC.com",
-        phone: "(919) 564-9134 ext. 106"
-    },
-    {
-        name: "Tracy Lynn",
-        title: "Compliance Manager",
-        image: null,
-        bio: "Ensuring community standards are met with fairness and consistency.",
-        email: "Tracy@CommunityFocusNC.com",
-        phone: null // Phone not yet assigned
-    },
-    {
-        name: "Tristan McInturff",
-        title: "On-Site Inspections / Compliance",
-        image: null,
-        bio: "Conducting thorough on-site inspections to maintain community value.",
-        email: "Tristan@CommunityFocusNC.com",
-        phone: null // Phone not yet assigned
     },
 ];
 
