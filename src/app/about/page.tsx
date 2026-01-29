@@ -1,11 +1,6 @@
 import Image from 'next/image';
-import { Mail, Phone, Shield, Users, Heart } from 'lucide-react';
+import { Mail, Phone, Shield, Users, Heart, User } from 'lucide-react'; // Added User icon
 import Reveal from '@/components/Reveal';
-
-// Helper to get initials for placeholder
-const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-};
 
 // 1. Define the President separately
 const president = {
@@ -22,7 +17,7 @@ const staff = [
     {
         name: "Lisa Austin",
         title: "Association Services",
-        image: "/team/lisa-austin.jpg",
+        image: null,
         bio: "Providing essential support to ensure our communities run smoothly.",
         email: "Lisa@CommunityFocusNC.com",
         phone: "(919) 564-9134 ext. 106"
@@ -38,7 +33,7 @@ const staff = [
     {
         name: "Amy Ghiloni",
         title: "Community Association Manager",
-        image: "/team/amy-ghiloni.png",
+        image: null,
         bio: "Dedicated to supporting board members and homeowners with clear communication.",
         email: "Amy@CommunityFocusNC.com",
         phone: "(919) 564-9134 ext. 109"
@@ -68,19 +63,28 @@ const staff = [
         phone: null
     },
     {
+        name: "Shan Wofford",
+        title: "Assistant Manager",
+        image: null,
+        bio: "Focused on efficient community management and solving complex association challenges.",
+        email: "Shan@CommunityFocusNC.com",
+        phone: "(540) 632-6388"
+    },
+    {
         name: "Wade Womble",
         title: "Community Association Manager",
-        image: "/team/wade-womble.jpg",
+        image: null,
         bio: "Focused on efficient community management and solving complex association challenges.",
         email: "Wade@CommunityFocusNC.com",
         phone: "(919) 564-9134 ext. 108"
     },
 ];
 
-// Reusable Card Component to keep code clean
+// Reusable Card Component
 function TeamCard({ member }: { member: any }) {
     return (
         <div className="group bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-md transition-all h-full flex flex-col">
+
             {/* Image Area */}
             <div className="relative aspect-[3/4] w-full bg-slate-100 overflow-hidden flex items-center justify-center">
                 {member.image ? (
@@ -91,12 +95,10 @@ function TeamCard({ member }: { member: any }) {
                         className="object-cover object-top group-hover:scale-105 transition-transform duration-500"
                     />
                 ) : (
-                    <div className="flex flex-col items-center justify-center text-slate-300">
-                        <div className="w-24 h-24 rounded-full bg-slate-200 flex items-center justify-center mb-2">
-                            <span className="text-2xl font-bold text-slate-400 tracking-wider">
-                                {getInitials(member.name)}
-                            </span>
-                        </div>
+                    // --- UPDATED PLACEHOLDER: PROFESSIONAL SILHOUETTE ---
+                    <div className="w-full h-full flex items-end justify-center bg-gradient-to-b from-slate-100 to-slate-200">
+                         {/* Large silhouette icon positioned at the bottom to look like a bust */}
+                        <User className="w-40 h-40 text-slate-300/80 translate-y-4" strokeWidth={1} />
                     </div>
                 )}
             </div>
@@ -195,11 +197,8 @@ export default function AboutPage() {
                         </Reveal>
                     </div>
 
-                    {/* A. President Section (Centered, Exactly Same Card Width as Others) */}
+                    {/* A. President Section (Centered, Same width as others) */}
                     <div className="flex justify-center mb-12">
-                        {/* UPDATED: Using the exact same width classes as the grid items below
-                          to ensure perfect visual consistency.
-                        */}
                         <div className="w-full md:w-[calc(33.333%-1.5rem)] min-w-[300px] max-w-sm">
                             <Reveal delay={0}>
                                 <TeamCard member={president} />
