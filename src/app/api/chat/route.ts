@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import pool from '@/lib/db';
+import { checkRateLimit } from '@/lib/rateLimit';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 const OFFICE_PHONE = "(919) 564-9134";
@@ -23,6 +24,13 @@ async function retryWithBackoff<T>(fn: () => Promise<T>, retries = 3, delay = 20
 
 export async function POST(request: Request) {
     try {
+        // --- RATE LIMITING ---
+        const ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim()
+            ?? request.headers.get('x-real-ip')
+            ?? 'anonymous';
+        const rateLimited = await checkRateLimit(ip);
+        if (rateLimited) return rateLimited;
+
         const { message, history, communityName } = await request.json();
 
         if (!message || !communityName) {
