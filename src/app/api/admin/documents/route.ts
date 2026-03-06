@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import pool from '@/lib/db';
 import { createClient } from '@supabase/supabase-js';
+import { checkAdminAuth } from '@/lib/checkAuth';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
@@ -49,6 +50,9 @@ function smartChunking(text: string, chunkSize = 2000, overlap = 200): string[] 
 
 // GET: List documents
 export async function GET() {
+    const auth = await checkAdminAuth();
+    if (!auth.authorized) return auth.response;
+
     try {
         const result = await pool.query(`
             SELECT DISTINCT cd.filename, cd.community_id, c.name as real_community_name, MIN(cd.created_at) as created_at, COUNT(*) as chunk_count
@@ -73,6 +77,9 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+    const auth = await checkAdminAuth();
+    if (!auth.authorized) return auth.response;
+
     try {
         const formData = await req.formData();
         const file = formData.get('file') as File;
@@ -148,6 +155,9 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
+    const auth = await checkAdminAuth();
+    if (!auth.authorized) return auth.response;
+
     try {
         const { searchParams } = new URL(req.url);
         const filename = searchParams.get('id');

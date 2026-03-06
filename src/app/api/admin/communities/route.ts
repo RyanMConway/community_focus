@@ -4,6 +4,9 @@ import { checkAdminAuth } from '@/lib/checkAuth';
 
 // --- GET ALL COMMUNITIES (Includes Global) ---
 export async function GET() {
+    const auth = await checkAdminAuth();
+    if (!auth.authorized) return auth.response;
+
     const client = await pool.connect();
     try {
         const { rows } = await client.query('SELECT * FROM communities ORDER BY name ASC');
