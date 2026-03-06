@@ -1,19 +1,24 @@
 import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
+import { checkAdminAuth } from '@/lib/checkAuth';
 
 // DELETE a message
 export async function DELETE(
     request: Request,
-    { params }: { params: Promise<{ id: string }> } // <--- FIXED TYPE
+    { params }: { params: Promise<{ id: string }> }
 ) {
+    const auth = await checkAdminAuth();
+    if (!auth.authorized) return auth.response;
+
     try {
         const { id } = await params;
         const client = await pool.connect();
-
-        await client.query('DELETE FROM contact_messages WHERE id = $1', [id]);
-
-        client.release();
-        return NextResponse.json({ success: true });
+        try {
+            await client.query('DELETE FROM contact_messages WHERE id = $1', [id]);
+            return NextResponse.json({ success: true });
+        } finally {
+            client.release();
+        }
     } catch (error) {
         console.error('Delete Error:', error);
         return NextResponse.json({ error: 'Failed to delete' }, { status: 500 });
@@ -23,22 +28,26 @@ export async function DELETE(
 // PATCH (Update) status (e.g., mark as 'read')
 export async function PATCH(
     request: Request,
-    { params }: { params: Promise<{ id: string }> } // <--- FIXED TYPE
+    { params }: { params: Promise<{ id: string }> }
 ) {
+    const auth = await checkAdminAuth();
+    if (!auth.authorized) return auth.response;
+
     try {
         const { id } = await params;
         const body = await request.json();
         const { status } = body; // e.g., 'read', 'archived'
 
         const client = await pool.connect();
-
-        await client.query(
-            'UPDATE contact_messages SET status = $1 WHERE id = $2',
-            [status, id]
-        );
-
-        client.release();
-        return NextResponse.json({ success: true });
+        try {
+            await client.query(
+                'UPDATE contact_messages SET status = $1 WHERE id = $2',
+                [status, id]
+            );
+            return NextResponse.json({ success: true });
+        } finally {
+            client.release();
+        }
     } catch (error) {
         console.error('Update Error:', error);
         return NextResponse.json({ error: 'Failed to update' }, { status: 500 });
