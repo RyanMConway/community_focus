@@ -44,13 +44,22 @@ const config: Config = {
                 'infinite-scroll': {
                     from: { transform: 'translateX(0)' },
                     to: { transform: 'translateX(-50%)' },
-                }
+                },
+                'shimmy': {
+                    '0%, 100%': { transform: 'translateX(0)' },
+                    '15%': { transform: 'translateX(-4px) rotate(-4deg)' },
+                    '30%': { transform: 'translateX(4px) rotate(4deg)' },
+                    '45%': { transform: 'translateX(-4px) rotate(-4deg)' },
+                    '60%': { transform: 'translateX(4px) rotate(4deg)' },
+                    '75%': { transform: 'translateX(-2px) rotate(-2deg)' },
+                },
             },
             animation: {
                 'shimmer-slide': 'shimmer-slide 0.8s ease-in-out infinite',
                 'float': 'float 6s ease-in-out infinite',
                 'float-delayed': 'float-delayed 7s ease-in-out infinite 1s',
                 'infinite-scroll': 'infinite-scroll 40s linear infinite',
+                'shimmy': 'shimmy 0.8s ease-in-out both',
             },
 
         },

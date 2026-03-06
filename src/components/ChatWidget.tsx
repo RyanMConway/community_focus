@@ -5,21 +5,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, X, Send, Sparkles, User, Bot, Building2, ChevronRight } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
-// Define the shimmy animation keyframes
-const shimmyStyle = `
-  @keyframes shimmy {
-    0%, 100% { transform: translateX(0); }
-    15% { transform: translateX(-4px) rotate(-4deg); }
-    30% { transform: translateX(4px) rotate(4deg); }
-    45% { transform: translateX(-4px) rotate(-4deg); }
-    60% { transform: translateX(4px) rotate(4deg); }
-    75% { transform: translateX(-2px) rotate(-2deg); }
-  }
-  .animate-shimmy {
-    animation: shimmy 0.8s ease-in-out both;
-  }
-`;
-
 export default function ChatWidget() {
     const [isOpen, setIsOpen] = useState(false);
 
@@ -105,8 +90,6 @@ export default function ChatWidget() {
 
     return (
         <>
-            <style>{shimmyStyle}</style>
-
             {/* Main Toggle Button (Floating) */}
             <div className="fixed bottom-6 right-6 z-50 flex items-center gap-4">
 
