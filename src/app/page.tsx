@@ -1,14 +1,12 @@
 import Link from 'next/link';
-import Image from 'next/image';
-import { Shield, Hammer, Users, MapPin, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Shield, Hammer, Users, MapPin, ArrowRight } from 'lucide-react';
 import Reveal, { RevealItem } from "@/components/Reveal";
-import ShinyButton from "@/components/ShinyButton";
 import Testimonials from "@/components/Testimonials";
 import FAQ from "@/components/FAQ";
 import StatsBar from "@/components/StatsBar";
+import HeroSection from "@/components/HeroSection";
 import pool from '@/lib/db';
 import { getGoogleReviews } from '@/lib/google-reviews';
-import HomeQuestionnaire from "@/components/HomeQuestionnaire";
 
 async function getFeaturedCommunities() {
   const client = await pool.connect();
@@ -27,63 +25,7 @@ export default async function Home() {
   return (
       <main className="min-h-screen bg-slate-50 selection:bg-brand selection:text-white">
 
-        {/* HERO SECTION - Updated with Background Image */}
-        <div className="relative pt-40 pb-40 lg:pt-48 lg:pb-48 overflow-hidden">
-
-          {/* BACKGROUND IMAGE */}
-          <Image
-            src="https://images.unsplash.com/photo-1592595896551-12b371d546d5?q=80&w=2670&auto=format&fit=crop"
-            alt="Peaceful Suburban Neighborhood with beautiful homes"
-            fill
-            priority
-            className="object-cover object-center"
-          />
-
-          {/* Animated gradient mesh overlay */}
-          <div className="absolute inset-0 bg-gradient-mesh opacity-75 z-0"></div>
-
-          {/* Subtle Grid Pattern Overlay (Optional - kept from previous design) */}
-          <div className="absolute inset-0 bg-grid-white opacity-10 pointer-events-none z-0"></div>
-
-          <div className="relative z-10 container mx-auto px-4 text-center text-white flex flex-col items-center">
-
-            <Reveal>
-              <div className="inline-flex items-center gap-2 py-1.5 px-4 rounded-full bg-white/10 border border-white/20 text-sm font-medium mb-8 backdrop-blur-md shadow-lg shadow-black/5 hover:bg-white/20 transition-colors cursor-default">
-                <CheckCircle2 className="w-4 h-4 text-brand-accent" />
-                <span className="text-blue-50">Trusted by 30+ NC Communities</span>
-              </div>
-            </Reveal>
-
-            <Reveal delay={0.1}>
-              <h1 className="text-5xl md:text-7xl font-serif font-bold mb-8 tracking-tight drop-shadow-sm">
-                Focus on your <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-200 via-white to-blue-200">
-                  Community.
-                </span>
-              </h1>
-            </Reveal>
-
-            <Reveal delay={0.2}>
-              <p className="text-lg md:text-xl text-blue-100/90 max-w-2xl mx-auto mb-10 font-light leading-relaxed">
-                We handle the heavy lifting of association management with transparency,
-                modern technology, and a personal touch.
-              </p>
-            </Reveal>
-
-            {/* Questionnaire Component */}
-            <Reveal delay={0.3} width="100%">
-              <HomeQuestionnaire />
-            </Reveal>
-
-          </div>
-
-          {/* Wave divider into next section */}
-          <div className="absolute bottom-0 left-0 w-full z-10 leading-none">
-            <svg viewBox="0 0 1440 80" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full block">
-              <path d="M0,40 C360,80 1080,0 1440,40 L1440,80 L0,80 Z" fill="#f8fafc"/>
-            </svg>
-          </div>
-        </div>
+        <HeroSection />
 
         {/* COMMUNITIES GRID */}
         <div className="container mx-auto px-4 -mt-16 relative z-20">
