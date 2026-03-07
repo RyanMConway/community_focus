@@ -3,9 +3,11 @@ import { ClerkProvider } from '@clerk/nextjs';
 import { Inter, Merriweather } from "next/font/google";
 import { Toaster } from 'react-hot-toast'; // Kept the new Toast library
 import "./globals.css";
-import Navbar from "@/components/Navbar"; // Restored
-import Footer from "@/components/Footer"; // Restored
-import ChatWidget from "@/components/ChatWidget"; // Restored
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
+import ChatWidget from "@/components/ChatWidget";
+import PageCurtain from "@/components/PageCurtain";
+import PageTransition from "@/components/PageTransition";
 
 // Setup Google Fonts
 const inter = Inter({ subsets: ["latin"], variable: '--font-inter' });
@@ -47,16 +49,19 @@ export default function RootLayout({
                         }}
                     />
 
-                    {/* 2. Restore the Navbar */}
+                    {/* Page load curtain reveal */}
+                    <PageCurtain />
+
                     <Navbar />
 
-                    {/* 3. Restore the Main Content Area */}
-                    <main className="flex-grow">
-                        {children}
-                    </main>
+                    {/* Page transition wrapper */}
+                    <PageTransition>
+                        <main className="flex-grow">
+                            {children}
+                        </main>
 
-                    {/* 4. Restore the Footer */}
-                    <Footer />
+                        <Footer />
+                    </PageTransition>
 
                     {/* 5. Restore the Chat Widget */}
                     <ChatWidget />
