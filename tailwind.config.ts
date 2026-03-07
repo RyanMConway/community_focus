@@ -10,10 +10,11 @@ const config: Config = {
         extend: {
             colors: {
                 brand: {
-                    dark: '#0B1120', // Darker, richer slate
+                    dark: '#0B1120',
                     DEFAULT: '#2563eb',
                     light: '#eff6ff',
                     accent: '#38bdf8',
+                    gold: '#f59e0b',
                 },
             },
             backgroundImage: {
@@ -53,6 +54,15 @@ const config: Config = {
                     '60%': { transform: 'translateX(4px) rotate(4deg)' },
                     '75%': { transform: 'translateX(-2px) rotate(-2deg)' },
                 },
+                'gradient-shift': {
+                    '0%': { backgroundPosition: '0% 50%' },
+                    '50%': { backgroundPosition: '100% 50%' },
+                    '100%': { backgroundPosition: '0% 50%' },
+                },
+                'count-up': {
+                    from: { opacity: '0', transform: 'translateY(8px)' },
+                    to: { opacity: '1', transform: 'translateY(0)' },
+                },
             },
             animation: {
                 'shimmer-slide': 'shimmer-slide 0.8s ease-in-out infinite',
@@ -60,6 +70,8 @@ const config: Config = {
                 'float-delayed': 'float-delayed 7s ease-in-out infinite 1s',
                 'infinite-scroll': 'infinite-scroll 40s linear infinite',
                 'shimmy': 'shimmy 0.8s ease-in-out both',
+                'gradient-shift': 'gradient-shift 8s ease infinite',
+                'count-up': 'count-up 0.6s ease-out forwards',
             },
 
         },

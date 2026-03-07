@@ -14,9 +14,24 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Optional: Add a subtle grid pattern utility we can use in the Hero */
+/* Grid pattern overlay for hero */
 .bg-grid-white {
   background-size: 40px 40px;
   background-image: linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
   linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+}
+
+/* Animated gradient mesh — used as hero overlay */
+.bg-gradient-mesh {
+  background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 30%, #0c4a6e 60%, #0f172a 100%);
+  background-size: 300% 300%;
+  animation: gradient-shift 8s ease infinite;
+}
+
+/* Gradient text utility */
+.text-gradient {
+  background: linear-gradient(135deg, #2563eb 0%, #38bdf8 50%, #93c5fd 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }

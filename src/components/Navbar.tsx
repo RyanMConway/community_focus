@@ -37,9 +37,9 @@ export default function Navbar() {
 
     return (
         <nav
-            className={`fixed w-full top-0 z-50 transition-all duration-300 
+            className={`fixed w-full top-0 z-50 transition-all duration-500
             ${showSolidNav
-                ? 'bg-white/95 backdrop-blur-md border-b border-slate-200/50 shadow-sm'
+                ? 'bg-white/80 backdrop-blur-xl border-b border-slate-200/40 shadow-[0_1px_24px_0_rgba(0,0,0,0.06)]'
                 : 'bg-transparent border-b border-transparent'
             }`}
         >
@@ -80,17 +80,26 @@ export default function Navbar() {
 
                 {/* Desktop Navigation */}
                 <div className="hidden lg:flex items-center gap-5 xl:gap-8">
-                    {NAV_ITEMS.map((item) => (
-                        <Link
-                            key={item.label}
-                            href={item.href}
-                            className={`font-medium transition-colors text-sm hover:text-brand-accent
-                                ${showSolidNav ? 'text-slate-600' : 'text-slate-200'}
-                            `}
-                        >
-                            {item.label}
-                        </Link>
-                    ))}
+                    {NAV_ITEMS.map((item) => {
+                        const isActive = pathname === item.href;
+                        return (
+                            <Link
+                                key={item.label}
+                                href={item.href}
+                                className={`relative font-medium transition-colors text-sm group
+                                    ${isActive
+                                        ? showSolidNav ? 'text-brand' : 'text-white'
+                                        : showSolidNav ? 'text-slate-600 hover:text-brand' : 'text-slate-200 hover:text-white'
+                                    }
+                                `}
+                            >
+                                {item.label}
+                                <span className={`absolute -bottom-1 left-0 h-0.5 bg-brand rounded-full transition-all duration-300
+                                    ${isActive ? 'w-full' : 'w-0 group-hover:w-full'}
+                                `} />
+                            </Link>
+                        );
+                    })}
 
                     <ShinyButton href="/contact" className="py-2.5 px-5 text-sm">
                         Contact Us

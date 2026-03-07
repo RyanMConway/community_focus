@@ -1,10 +1,11 @@
 import Link from 'next/link';
-import Image from 'next/image'; // IMPORT ADDED
+import Image from 'next/image';
 import { Shield, Hammer, Users, MapPin, ArrowRight, CheckCircle2 } from 'lucide-react';
-import Reveal from "@/components/Reveal";
+import Reveal, { RevealItem } from "@/components/Reveal";
 import ShinyButton from "@/components/ShinyButton";
 import Testimonials from "@/components/Testimonials";
 import FAQ from "@/components/FAQ";
+import StatsBar from "@/components/StatsBar";
 import pool from '@/lib/db';
 import { getGoogleReviews } from '@/lib/google-reviews';
 import HomeQuestionnaire from "@/components/HomeQuestionnaire";
@@ -38,8 +39,8 @@ export default async function Home() {
             className="object-cover object-center"
           />
 
-          {/* Dark Overlay for Text Readability */}
-          <div className="absolute inset-0 bg-slate-900/60 z-0"></div>
+          {/* Animated gradient mesh overlay */}
+          <div className="absolute inset-0 bg-gradient-mesh opacity-75 z-0"></div>
 
           {/* Subtle Grid Pattern Overlay (Optional - kept from previous design) */}
           <div className="absolute inset-0 bg-grid-white opacity-10 pointer-events-none z-0"></div>
@@ -76,8 +77,12 @@ export default async function Home() {
 
           </div>
 
-          {/* Decorative Bottom Wave/Fade to blend into next section */}
-          <div className="absolute bottom-0 left-0 w-full h-32 bg-gradient-to-t from-slate-50 to-transparent z-10"></div>
+          {/* Wave divider into next section */}
+          <div className="absolute bottom-0 left-0 w-full z-10 leading-none">
+            <svg viewBox="0 0 1440 80" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full block">
+              <path d="M0,40 C360,80 1080,0 1440,40 L1440,80 L0,80 Z" fill="#f8fafc"/>
+            </svg>
+          </div>
         </div>
 
         {/* COMMUNITIES GRID */}
@@ -115,40 +120,51 @@ export default async function Home() {
             <div className="text-center mb-16">
               <Reveal width="100%">
                 <div className="flex flex-col items-center">
-                  <span className="text-brand font-bold tracking-wider uppercase text-xs mb-2">Why Choose Us</span>
-                  <h2 className="text-3xl md:text-4xl font-serif font-bold text-slate-900">Built for Modern Boards</h2>
+                  <span className="text-brand-gold font-bold tracking-wider uppercase text-xs mb-3">Why Choose Us</span>
+                  <h2 className="text-3xl md:text-4xl font-serif font-bold">
+                    <span className="text-gradient">Built for Modern Boards</span>
+                  </h2>
                 </div>
               </Reveal>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-left">
-              {[
-                { icon: Shield, title: "Financial Integrity", desc: "Bank-grade security for assessments, transparent real-time reporting, and rigorous audit trails." },
-                { icon: Hammer, title: "Proactive Maintenance", desc: "We don't just fix problems; we prevent them with regular site inspections and trusted vendor networks." },
-                { icon: Users, title: "Community First", desc: "Dedicated managers who actually answer the phone and care about the neighbors they serve." }
-              ].map((feature, idx) => (
-                  <Reveal key={idx} delay={0.1 * (idx + 1)}>
+            <Reveal width="100%" stagger>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-left">
+                {[
+                  { icon: Shield, title: "Financial Integrity", desc: "Bank-grade security for assessments, transparent real-time reporting, and rigorous audit trails." },
+                  { icon: Hammer, title: "Proactive Maintenance", desc: "We don't just fix problems; we prevent them with regular site inspections and trusted vendor networks." },
+                  { icon: Users, title: "Community First", desc: "Dedicated managers who actually answer the phone and care about the neighbors they serve." }
+                ].map((feature, idx) => (
+                  <RevealItem key={idx}>
                     <div className="group p-8 bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-card-hover hover:border-brand/20 transition-all duration-300 h-full relative overflow-hidden">
-                      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-brand via-brand-accent to-brand opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-brand via-brand-accent to-brand-gold opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                       <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
                         <feature.icon className="w-7 h-7 text-brand" />
                       </div>
                       <h3 className="text-xl font-bold text-slate-800 mb-3">{feature.title}</h3>
-                      <p className="text-slate-600 leading-relaxed text-sm">
-                        {feature.desc}
-                      </p>
+                      <p className="text-slate-600 leading-relaxed text-sm">{feature.desc}</p>
                     </div>
-                  </Reveal>
-              ))}
-            </div>
+                  </RevealItem>
+                ))}
+              </div>
+            </Reveal>
           </div>
 
+        </div>
+
+        {/* STATS BAR — full bleed, outside container */}
+        <StatsBar />
+
+        <div className="container mx-auto px-4">
+
           {/* TESTIMONIALS SECTION */}
-          <div className="mb-24 py-20 -mx-4 bg-slate-100/50 border-y border-slate-200/60">
+          <div className="mb-24 py-20 -mx-4 bg-slate-100/50 border-y border-slate-200/60 mt-24">
             <div className="container mx-auto px-4">
               <div className="text-center mb-12">
                 <Reveal>
-                  <h2 className="text-3xl font-serif font-bold text-slate-900">Community Voices</h2>
+                  <h2 className="text-3xl font-serif font-bold">
+                    <span className="text-gradient">Community Voices</span>
+                  </h2>
                   <p className="text-slate-500 mt-2">Hear from the board members we work with every day.</p>
                 </Reveal>
               </div>
@@ -178,7 +194,9 @@ export default async function Home() {
           <div className="mb-24 container mx-auto px-4 max-w-4xl">
             <div className="text-center mb-12">
               <Reveal>
-                <h2 className="text-3xl font-serif font-bold text-slate-900 mb-4">Frequently Asked Questions</h2>
+                <h2 className="text-3xl font-serif font-bold mb-4">
+                  <span className="text-gradient">Frequently Asked Questions</span>
+                </h2>
               </Reveal>
             </div>
             <Reveal delay={0.2}>
