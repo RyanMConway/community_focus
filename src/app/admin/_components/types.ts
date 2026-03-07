@@ -63,6 +63,25 @@ export interface Document {
     created_at: string;
 }
 
+export interface BidRequest {
+    id: number;
+    community_name: string;
+    association_type: string;
+    unit_count: number;
+    city: string;
+    current_situation: string;
+    services_needed: string[];
+    biggest_challenge: string | null;
+    timeline: string;
+    contact_name: string;
+    contact_role: string;
+    contact_email: string;
+    contact_phone: string;
+    best_time: string;
+    status: 'new' | 'contacted' | 'won' | 'lost';
+    created_at: string;
+}
+
 export interface AnalyticsData {
     total: number;
     categories: { category: string; count: number }[];

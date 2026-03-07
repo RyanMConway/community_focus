@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useUser } from '@clerk/nextjs';
 import {
     Mail, Building2, Loader, ShieldAlert, BarChart3,
-    Users, BrainCircuit, BookOpen, Calendar, Megaphone, HardHat
+    Users, BrainCircuit, BookOpen, Calendar, Megaphone, HardHat, FileSignature
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
@@ -19,19 +19,21 @@ import NewsTab from './_components/NewsTab';
 import BrainTab from './_components/BrainTab';
 import KnowledgeTab from './_components/KnowledgeTab';
 import AnalyticsTab from './_components/AnalyticsTab';
+import BidsTab from './_components/BidsTab';
 
-type Tab = 'inbox' | 'communities' | 'managers' | 'vendors' | 'events' | 'news' | 'knowledge' | 'analytics' | 'brain';
+type Tab = 'inbox' | 'communities' | 'managers' | 'vendors' | 'events' | 'news' | 'knowledge' | 'analytics' | 'brain' | 'bids';
 
 const TABS = [
-    { id: 'inbox',       icon: Mail,        label: 'Inbox' },
-    { id: 'communities', icon: Building2,    label: 'Communities' },
-    { id: 'events',      icon: Calendar,     label: 'Events' },
-    { id: 'news',        icon: Megaphone,    label: 'News' },
-    { id: 'vendors',     icon: HardHat,      label: 'Vendors' },
-    { id: 'managers',    icon: Users,        label: 'Managers' },
-    { id: 'brain',       icon: BrainCircuit, label: 'Brain' },
-    { id: 'knowledge',   icon: BookOpen,     label: 'Docs' },
-    { id: 'analytics',   icon: BarChart3,    label: 'Stats' },
+    { id: 'inbox',       icon: Mail,          label: 'Inbox' },
+    { id: 'bids',        icon: FileSignature,  label: 'Proposals' },
+    { id: 'communities', icon: Building2,      label: 'Communities' },
+    { id: 'events',      icon: Calendar,       label: 'Events' },
+    { id: 'news',        icon: Megaphone,      label: 'News' },
+    { id: 'vendors',     icon: HardHat,        label: 'Vendors' },
+    { id: 'managers',    icon: Users,          label: 'Managers' },
+    { id: 'brain',       icon: BrainCircuit,   label: 'Brain' },
+    { id: 'knowledge',   icon: BookOpen,       label: 'Docs' },
+    { id: 'analytics',   icon: BarChart3,      label: 'Stats' },
 ] as const;
 
 export default function AdminDashboard() {
@@ -188,6 +190,7 @@ export default function AdminDashboard() {
                     <KnowledgeTab communities={communities} documents={documents} onDeleteDocument={handleDeleteDocument} />
                 )}
                 {activeTab === 'analytics' && <AnalyticsTab communities={communities} />}
+                {activeTab === 'bids' && <BidsTab />}
             </div>
         </div>
     );

@@ -33,7 +33,7 @@ export default function Footer() {
                             </div>
 
                             <div className="relative z-10 flex-shrink-0">
-                                <ShinyButton href="/contact" variant="secondary" className="shadow-lg py-3 px-6 text-sm">
+                                <ShinyButton href="/get-proposal" variant="secondary" className="shadow-lg py-3 px-6 text-sm">
                                     Get a Proposal <ArrowRight className="w-4 h-4 ml-2" />
                                 </ShinyButton>
                             </div>
