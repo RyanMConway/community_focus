@@ -1,11 +1,10 @@
-import Image from 'next/image';
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import pool from '@/lib/db';
-import { FileText, Download, Phone, Mail, MapPin } from 'lucide-react';
-import Navbar from '@/components/Navbar';
-import Footer from '@/components/Footer';
-import ChatWidget from '@/components/ChatWidget';
+import { FileText, Download, Phone, Mail } from 'lucide-react';
 import AlertBanner from '@/components/AlertBanner';
+import CommunityHero from '@/components/CommunityHero';
+import Reveal, { RevealItem } from '@/components/Reveal';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,6 +32,33 @@ async function getData(slug: string) {
     }
 }
 
+export async function generateMetadata(
+  { params }: { params: Promise<{ slug: string }> }
+): Promise<Metadata> {
+  const { slug } = await params;
+  const data = await getData(slug);
+
+  if (!data) {
+    return { title: 'Community Not Found' };
+  }
+
+  const { community } = data;
+  const title = community.name;
+  const description = community.description
+    ? `${community.description} Managed by Community Focus of NC.`
+    : `${community.name} in ${community.city}, NC — managed by Community Focus of NC. Access documents, contact your manager, and stay connected with your community.`;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title: `${community.name} | Community Focus of NC`,
+      description,
+      ...(community.image_url && { images: [{ url: community.image_url }] }),
+    },
+  };
+}
+
 export default async function CommunityPage({ params }: { params: Promise<{ slug: string }> }) {
     const slug = (await params).slug;
     const data = await getData(slug);
@@ -40,7 +66,6 @@ export default async function CommunityPage({ params }: { params: Promise<{ slug
     if (!data) return notFound();
     const { community, manager, documents } = data;
 
-    // Group Docs by Category
     const groupedDocs = documents.reduce((acc: any, doc: any) => {
         const cat = doc.category || 'General';
         if (!acc[cat]) acc[cat] = [];
@@ -50,9 +75,7 @@ export default async function CommunityPage({ params }: { params: Promise<{ slug
 
     return (
         <main className="min-h-screen bg-slate-50">
-            <Navbar />
-
-            {/* --- ALERT BANNER --- */}
+            {/* Alert banner (above hero) */}
             <AlertBanner
                 message={community.alert_message}
                 type={community.alert_type}
@@ -60,144 +83,123 @@ export default async function CommunityPage({ params }: { params: Promise<{ slug
                 endTime={community.alert_end_time}
             />
 
-            {/* --- HERO SECTION --- */}
-            <div className="relative h-[450px] w-full flex items-center justify-center overflow-hidden bg-brand-dark">
-
-                {/* 1. Background Image */}
-                {community.image_url ? (
-                    <Image
-                        src={community.image_url}
-                        alt={community.name}
-                        fill
-                        className="object-cover"
-                        priority
-                    />
-                ) : (
-                    <div className="absolute inset-0 bg-hero-gradient"></div>
-                )}
-
-                {/* 2. Gradient Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/50 to-slate-900/20"></div>
-
-                {/* 3. Texture Pattern */}
-                <div className="absolute inset-0 bg-grid-white opacity-10 pointer-events-none"></div>
-
-                {/* 4. Content */}
-                <div className="relative z-10 text-center text-white px-6 max-w-4xl mx-auto">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-xs font-medium mb-6 backdrop-blur-md">
-                        <MapPin className="w-3 h-3 text-brand-accent" />
-                        <span className="uppercase tracking-wider">{community.city || 'North Carolina'}</span>
-                    </div>
-                    <h1 className="text-5xl md:text-6xl font-serif font-bold mb-6 drop-shadow-lg tracking-tight">
-                        {community.name}
-                    </h1>
-                    <p className="text-xl text-blue-50/90 max-w-2xl mx-auto leading-relaxed font-light">
-                        {community.description}
-                    </p>
-                </div>
-            </div>
+            {/* Parallax hero — client component */}
+            <CommunityHero
+                name={community.name}
+                city={community.city}
+                description={community.description}
+                image_url={community.image_url}
+            />
 
             {/* MAIN LAYOUT GRID */}
-            {/* -mt-16 pulls the content up to overlap the hero. */}
             <div className="max-w-7xl mx-auto px-6 py-12 grid grid-cols-1 lg:grid-cols-3 gap-12 -mt-16 relative z-20">
 
-                {/* LEFT COLUMN: Info & Manager */}
-                {/* This STAYS pulled up to overlap the hero (looks nice because it's in a white card) */}
+                {/* LEFT COLUMN: Manager card + Portal */}
                 <div className="space-y-8">
-                    {/* Manager Card */}
-                    <div className="bg-white p-6 rounded-2xl shadow-xl shadow-slate-200/50 border border-white/50 backdrop-blur-sm">
-                        <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-                            <UserCardIcon /> Community Manager
-                        </h3>
-                        {manager ? (
-                            <div className="space-y-4">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-14 h-14 bg-gradient-to-br from-blue-100 to-blue-50 rounded-full flex items-center justify-center text-brand font-bold text-xl border border-blue-100">
-                                        {manager.name.charAt(0)}
+                    <Reveal direction="left">
+                        {/* Manager Card */}
+                        <div className="bg-white p-6 rounded-2xl shadow-xl shadow-slate-200/50 border border-white/50 backdrop-blur-sm">
+                            <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                                <UserCardIcon /> Community Manager
+                            </h3>
+                            {manager ? (
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-14 h-14 bg-gradient-to-br from-blue-100 to-blue-50 rounded-full flex items-center justify-center text-brand font-bold text-xl border border-blue-100">
+                                            {manager.name.charAt(0)}
+                                        </div>
+                                        <div>
+                                            <p className="font-bold text-slate-800 text-lg">{manager.name}</p>
+                                            <p className="text-sm text-slate-500">Dedicated Manager</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <p className="font-bold text-slate-800 text-lg">{manager.name}</p>
-                                        <p className="text-sm text-slate-500">Dedicated Manager</p>
+                                    <hr className="border-slate-100 my-2" />
+                                    <div className="space-y-3">
+                                        <a href={`mailto:${manager.email}`} className="flex items-center gap-3 text-slate-600 hover:text-brand transition-colors group">
+                                            <div className="p-2 bg-slate-50 rounded-lg group-hover:bg-blue-50 transition-colors">
+                                                <Mail className="w-4 h-4" />
+                                            </div>
+                                            <span className="text-sm font-medium">{manager.email}</span>
+                                        </a>
+                                        <a href={`tel:${manager.phone}`} className="flex items-center gap-3 text-slate-600 hover:text-brand transition-colors group">
+                                            <div className="p-2 bg-slate-50 rounded-lg group-hover:bg-blue-50 transition-colors">
+                                                <Phone className="w-4 h-4" />
+                                            </div>
+                                            <span className="text-sm font-medium">{manager.phone}</span>
+                                        </a>
                                     </div>
                                 </div>
-                                <hr className="border-slate-100 my-2" />
-                                <div className="space-y-3">
-                                    <a href={`mailto:${manager.email}`} className="flex items-center gap-3 text-slate-600 hover:text-brand transition-colors group">
-                                        <div className="p-2 bg-slate-50 rounded-lg group-hover:bg-blue-50 transition-colors">
-                                            <Mail className="w-4 h-4" />
-                                        </div>
-                                        <span className="text-sm font-medium">{manager.email}</span>
-                                    </a>
-                                    <a href={`tel:${manager.phone}`} className="flex items-center gap-3 text-slate-600 hover:text-brand transition-colors group">
-                                        <div className="p-2 bg-slate-50 rounded-lg group-hover:bg-blue-50 transition-colors">
-                                            <Phone className="w-4 h-4" />
-                                        </div>
-                                        <span className="text-sm font-medium">{manager.phone}</span>
-                                    </a>
-                                </div>
+                            ) : (
+                                <p className="text-slate-500 italic">Please contact the main office.</p>
+                            )}
+                        </div>
+                    </Reveal>
+
+                    {/* Resident Portal card */}
+                    <Reveal delay={0.1}>
+                        <div className="relative bg-gradient-to-br from-brand to-brand-dark text-white p-6 rounded-2xl shadow-lg shadow-blue-500/20 overflow-hidden">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl" />
+                            <div className="absolute inset-0 bg-grid-white opacity-10 pointer-events-none" />
+
+                            <div className="relative z-10">
+                                <h3 className="font-bold mb-2 text-lg">Resident Portal</h3>
+                                <p className="text-blue-100 text-sm mb-6">
+                                    Pay dues, submit work orders, and view account history securely online.
+                                </p>
+                                <a
+                                    href={community.portal_url || "https://cfnc.cincwebaxis.com/"}
+                                    target="_blank"
+                                    className="block w-full bg-white text-brand text-center py-3 rounded-xl font-bold hover:bg-blue-50 transition-colors shadow-sm"
+                                >
+                                    Log In to Portal
+                                </a>
                             </div>
-                        ) : (
-                            <p className="text-slate-500 italic">Please contact the main office.</p>
-                        )}
-                    </div>
-
-                    {/* Quick Actions */}
-                    <div className="bg-brand text-white p-6 rounded-2xl shadow-lg shadow-blue-500/20 relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl"></div>
-
-                        <h3 className="font-bold mb-2 text-lg relative z-10">Resident Portal</h3>
-                        <p className="text-blue-100 text-sm mb-6 relative z-10">
-                            Pay dues, submit work orders, and view account history securely online.
-                        </p>
-                        <a
-                            href={community.portal_url || "https://cfnc.cincwebaxis.com/"}
-                            target="_blank"
-                            className="block w-full bg-white text-brand text-center py-3 rounded-xl font-bold hover:bg-blue-50 transition-colors shadow-sm relative z-10"
-                        >
-                            Log In to Portal
-                        </a>
-                    </div>
+                        </div>
+                    </Reveal>
                 </div>
 
                 {/* RIGHT COLUMN: Documents */}
-                {/* FIX: added lg:mt-24 to push this column down so the title doesn't overlap the hero image */}
                 <div className="lg:col-span-2 space-y-6 lg:mt-24">
                     <div className="flex items-center gap-3 mb-2">
-                        <div className="h-8 w-1 bg-brand rounded-full"></div>
+                        <div className="h-8 w-1 bg-brand rounded-full" />
                         <h2 className="text-3xl font-serif font-bold text-slate-800">Community Documents</h2>
                     </div>
 
                     {Object.keys(groupedDocs).length > 0 ? (
-                        <div className="grid gap-6">
-                            {Object.entries(groupedDocs).map(([category, docs]: [string, any]) => (
-                                <div key={category} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow duration-300">
-                                    <div className="bg-slate-50/80 px-6 py-4 border-b border-slate-100 flex items-center gap-2">
-                                        <FileText className="w-5 h-5 text-brand" />
-                                        <h3 className="font-bold text-slate-700">{category}</h3>
-                                    </div>
-                                    <div className="divide-y divide-slate-100">
-                                        {docs.map((doc: any) => (
-                                            <a
-                                                key={doc.id}
-                                                href={doc.file_url}
-                                                target="_blank"
-                                                className="flex items-center justify-between px-6 py-4 hover:bg-blue-50/30 transition-colors group"
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-slate-300 group-hover:bg-brand transition-colors"></div>
-                                                    <span className="text-slate-600 font-medium group-hover:text-brand-dark transition-colors">
-                                                        {doc.title}
-                                                    </span>
-                                                </div>
-                                                <div className="p-2 rounded-full text-slate-300 group-hover:text-brand group-hover:bg-blue-100/50 transition-all">
-                                                    <Download className="w-4 h-4" />
-                                                </div>
-                                            </a>
-                                        ))}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                        <Reveal width="100%" stagger>
+                            <div className="grid gap-6">
+                                {Object.entries(groupedDocs).map(([category, docs]: [string, any]) => (
+                                    <RevealItem key={category}>
+                                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow duration-300">
+                                            <div className="bg-slate-50/80 px-6 py-4 border-b border-slate-100 flex items-center gap-2">
+                                                <FileText className="w-5 h-5 text-brand" />
+                                                <h3 className="font-bold text-slate-700">{category}</h3>
+                                            </div>
+                                            <div className="divide-y divide-slate-100">
+                                                {docs.map((doc: any) => (
+                                                    <a
+                                                        key={doc.id}
+                                                        href={doc.file_url}
+                                                        target="_blank"
+                                                        className="flex items-center justify-between px-6 py-4 hover:bg-blue-50/30 transition-colors group"
+                                                    >
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-1.5 h-1.5 rounded-full bg-slate-300 group-hover:bg-brand transition-colors" />
+                                                            <span className="text-slate-600 font-medium group-hover:text-brand-dark transition-colors">
+                                                                {doc.title}
+                                                            </span>
+                                                        </div>
+                                                        <div className="p-2 rounded-full text-slate-300 group-hover:text-brand group-hover:bg-blue-100/50 transition-all">
+                                                            <Download className="w-4 h-4" />
+                                                        </div>
+                                                    </a>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </RevealItem>
+                                ))}
+                            </div>
+                        </Reveal>
                     ) : (
                         <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-slate-300">
                             <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -208,9 +210,6 @@ export default async function CommunityPage({ params }: { params: Promise<{ slug
                     )}
                 </div>
             </div>
-
-            <Footer />
-            <ChatWidget />
         </main>
     );
 }
