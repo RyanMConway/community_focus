@@ -7,11 +7,24 @@ import StatsBar from "@/components/StatsBar";
 import HeroSection from "@/components/HeroSection";
 import pool from '@/lib/db';
 import { getGoogleReviews } from '@/lib/google-reviews';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'HOA Management Services in NC',
+  description:
+    'Community Focus of NC provides professional association management for 30+ neighborhoods across Durham, Chapel Hill, Hillsborough, and Pittsboro. Transparent finances, proactive maintenance, and dedicated managers.',
+  openGraph: {
+    title: 'Community Focus of NC — HOA Management',
+    description:
+      'Serving 30+ communities across the NC Triangle with modern, transparent HOA management.',
+    url: 'https://www.communityfocusnc.com',
+  },
+};
 
 async function getFeaturedCommunities() {
   const client = await pool.connect();
   try {
-    const res = await client.query('SELECT * FROM communities ORDER BY name ASC LIMIT 6');
+    const res = await client.query("SELECT * FROM communities WHERE slug != 'global' ORDER BY name ASC LIMIT 6");
     return res.rows;
   } finally {
     client.release();
@@ -23,14 +36,14 @@ export default async function Home() {
   const reviews = await getGoogleReviews();
 
   return (
-      <main className="min-h-screen bg-slate-50 selection:bg-brand selection:text-white">
+      <main className="min-h-screen bg-white selection:bg-brand selection:text-brand-dark">
 
         <HeroSection />
 
         {/* COMMUNITIES GRID */}
         <div className="container mx-auto px-4 -mt-16 relative z-20">
           <Reveal width="100%">
-            <div className="bg-white/80 backdrop-blur-xl p-8 md:p-12 rounded-3xl shadow-2xl shadow-slate-200/50 border border-white/50 text-center mb-24">
+            <div className="bg-white p-8 md:p-12 rounded-3xl shadow-xl border border-slate-100 text-center mb-24">
               <h3 className="text-2xl font-bold text-slate-800 mb-3">Find Your Community</h3>
               <p className="text-slate-500 mb-8 max-w-xl mx-auto">Access your homeowner portal, view documents, and stay up to date with the latest neighborhood news.</p>
 
@@ -39,9 +52,9 @@ export default async function Home() {
                     <Link
                         key={comm.id}
                         href={`/communities/${comm.slug}`}
-                        className="flex items-center p-4 rounded-xl border border-slate-100 bg-white shadow-sm hover:shadow-glow hover:border-brand/30 hover:-translate-y-1 transition-all duration-300 group"
+                        className="flex items-center p-4 rounded-xl border border-slate-100 bg-white shadow-sm hover:shadow-emerald-glow hover:border-brand/30 hover:-translate-y-1 transition-all duration-300 group"
                     >
-                      <div className="bg-blue-50 p-2.5 rounded-lg mr-4 group-hover:bg-brand group-hover:text-white transition-colors duration-300">
+                      <div className="bg-brand/10 p-2.5 rounded-lg mr-4 group-hover:bg-brand group-hover:text-brand-dark transition-colors duration-300">
                         <MapPin className="w-5 h-5 text-brand group-hover:text-white" />
                       </div>
                       <span className="font-semibold text-slate-700 group-hover:text-brand transition-colors truncate">{comm.name}</span>
@@ -62,9 +75,9 @@ export default async function Home() {
             <div className="text-center mb-16">
               <Reveal width="100%">
                 <div className="flex flex-col items-center">
-                  <span className="text-brand-gold font-bold tracking-wider uppercase text-xs mb-3">Why Choose Us</span>
-                  <h2 className="text-3xl md:text-4xl font-serif font-bold">
-                    <span className="text-gradient">Built for Modern Boards</span>
+                  <span className="text-brand text-xs font-medium tracking-widest uppercase mb-3">Why Choose Us</span>
+                  <h2 className="text-3xl md:text-4xl font-serif font-bold text-slate-800">
+                    Built for Modern Boards
                   </h2>
                 </div>
               </Reveal>
@@ -80,7 +93,7 @@ export default async function Home() {
                   <RevealItem key={idx}>
                     <div className="group p-8 bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-card-hover hover:border-brand/20 transition-all duration-300 h-full relative overflow-hidden">
                       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-brand via-brand-accent to-brand-gold opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                      <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
+                      <div className="w-14 h-14 bg-brand/10 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
                         <feature.icon className="w-7 h-7 text-brand" />
                       </div>
                       <h3 className="text-xl font-bold text-slate-800 mb-3">{feature.title}</h3>
@@ -97,47 +110,47 @@ export default async function Home() {
         {/* STATS BAR — full bleed, outside container */}
         <StatsBar />
 
-        <div className="container mx-auto px-4">
-
-          {/* TESTIMONIALS SECTION */}
-          <div className="mb-24 py-20 -mx-4 bg-slate-100/50 border-y border-slate-200/60 mt-24">
-            <div className="container mx-auto px-4">
-              <div className="text-center mb-12">
-                <Reveal>
-                  <h2 className="text-3xl font-serif font-bold">
-                    <span className="text-gradient">Community Voices</span>
-                  </h2>
-                  <p className="text-slate-500 mt-2">Hear from the board members we work with every day.</p>
-                </Reveal>
-              </div>
-
-              {/* Reviews Slider */}
-              <Reveal delay={0.2}>
-                <Testimonials reviews={reviews} />
+        {/* TESTIMONIALS — full bleed outside container */}
+        <div className="mb-0 py-20 bg-brand-dark mt-24">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-12">
+              <Reveal>
+                <span className="text-brand-snow/60 text-xs font-medium tracking-widest uppercase mb-3 block">Community Voices</span>
+                <h2 className="text-3xl font-serif font-bold text-brand-snow">
+                  What Boards Are Saying
+                </h2>
+                <p className="text-brand-snow/50 mt-2">Hear from the board members we work with every day.</p>
               </Reveal>
-
-              {/* See All Reviews Button */}
-              <Reveal delay={0.3}>
-                <div className="flex justify-center mt-12">
-                  <Link
-                      href="/reviews"
-                      className="group inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white border border-slate-200 text-slate-600 font-semibold hover:border-brand hover:text-brand transition-all shadow-sm hover:shadow-md"
-                  >
-                    See All Reviews
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </Link>
-                </div>
-              </Reveal>
-
             </div>
-          </div>
 
+            {/* Reviews Slider */}
+            <Reveal delay={0.2}>
+              <Testimonials reviews={reviews} />
+            </Reveal>
+
+            {/* See All Reviews Button */}
+            <Reveal delay={0.3}>
+              <div className="flex justify-center mt-12">
+                <Link
+                    href="/reviews"
+                    className="group inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white/5 border border-brand-edge text-brand-snow/70 font-semibold hover:border-brand hover:text-brand transition-all"
+                >
+                  See All Reviews
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </Link>
+              </div>
+            </Reveal>
+          </div>
+        </div>
+
+        <div className="container mx-auto px-4">
           {/* FAQ SECTION */}
           <div className="mb-24 container mx-auto px-4 max-w-4xl">
             <div className="text-center mb-12">
               <Reveal>
-                <h2 className="text-3xl font-serif font-bold mb-4">
-                  <span className="text-gradient">Frequently Asked Questions</span>
+                <span className="text-brand text-xs font-medium tracking-widest uppercase mb-3 block">Got Questions</span>
+                <h2 className="text-3xl font-serif font-bold mb-4 text-slate-800">
+                  Frequently Asked Questions
                 </h2>
               </Reveal>
             </div>
@@ -147,7 +160,6 @@ export default async function Home() {
               </div>
             </Reveal>
           </div>
-
         </div>
       </main>
   );
