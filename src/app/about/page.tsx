@@ -1,8 +1,15 @@
+import type { Metadata } from 'next';
 import Image from 'next/image';
 import { Mail, Phone, Shield, Users, Heart, User } from 'lucide-react';
-import Reveal from '@/components/Reveal';
+import Reveal, { RevealItem } from '@/components/Reveal';
+import PageHeader from '@/components/PageHeader';
 
-// 1. Define the President separately
+export const metadata: Metadata = {
+  title: 'About Us',
+  description:
+    'Meet the Community Focus of NC team — dedicated managers and staff committed to transparent, responsive HOA management across North Carolina.',
+};
+
 const president = {
     name: "Josh Lindgren",
     title: "President",
@@ -12,7 +19,6 @@ const president = {
     phone: "(919) 564-9134 ext. 101"
 };
 
-// 2. Define the rest of the team
 const staff = [
     {
         name: "Lisa Austin",
@@ -80,18 +86,17 @@ const staff = [
     },
 ];
 
-// Reusable Card Component
 function TeamCard({ member }: { member: any }) {
-    // Check if this card uses the generic silhouette file
     const isSilhouette = member.image === '/team/silhouette.png';
 
     return (
-        <div className="group bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-md transition-all h-full flex flex-col">
+        <div className="group bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-card-hover hover:border-brand/20 transition-all duration-300 h-full flex flex-col relative">
+            {/* Gradient top bar — animates in on hover */}
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-brand via-brand-accent to-brand-gold opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10" />
 
             {/* Image Area */}
             <div className="relative aspect-[3/4] w-full bg-slate-100 overflow-hidden flex items-center justify-center">
                 {member.image && !isSilhouette ? (
-                    // OPTION A: REAL HEADSHOT (Full Bleed)
                     <Image
                         src={member.image}
                         alt={member.name}
@@ -99,22 +104,15 @@ function TeamCard({ member }: { member: any }) {
                         className="object-cover object-top group-hover:scale-105 transition-transform duration-500"
                     />
                 ) : member.image && isSilhouette ? (
-                    // OPTION B: SILHOUETTE PNG (Mid-Size, Centered on Background)
-                    <div className="w-full h-full flex items-end justify-center bg-gradient-to-b from-slate-50 to-slate-200/50">
-                        {/* UPDATED SIZE: w-48 h-48 (192px)
-                            This is the "middle ground" size.
-                        */}
-                        <div className="relative w-72 h-72 mb-0">
-                            <Image
-                                src={member.image}
-                                alt={member.name}
-                                fill
-                                className="object-contain object-bottom opacity-80"
-                            />
-                        </div>
+                    <div className="w-full h-full bg-gradient-to-b from-slate-100 to-slate-200 relative">
+                        <Image
+                            src={member.image}
+                            alt={member.name}
+                            fill
+                            className="object-contain object-bottom opacity-85"
+                        />
                     </div>
                 ) : (
-                    // OPTION C: FALLBACK ICON (If image is null)
                     <div className="w-full h-full flex items-end justify-center bg-gradient-to-b from-slate-100 to-slate-200">
                         <User className="w-24 h-24 text-slate-300/80 mb-0" strokeWidth={1} />
                     </div>
@@ -152,62 +150,59 @@ export default function AboutPage() {
     return (
         <main className="min-h-screen bg-slate-50 pb-20">
 
-            {/* HEADER */}
-            <div className="bg-brand-dark text-white pt-32 pb-20 px-6 relative overflow-hidden mb-20">
-                <div className="max-w-4xl mx-auto text-center relative z-10">
-                    <Reveal width="100%">
-                        <div className="flex flex-col items-center">
-                            <h1 className="text-4xl md:text-5xl font-serif font-bold mb-6">Community First</h1>
-                            <p className="text-xl text-blue-100 leading-relaxed max-w-2xl">
-                                We founded Community Focus of NC with a simple belief: HOAs should build communities, not just collect dues.
-                                We believe in transparency, responsiveness, and treating every homeowner with respect.
-                            </p>
-                        </div>
-                    </Reveal>
-                </div>
-                <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3"></div>
-                <div className="absolute bottom-0 left-0 w-64 h-64 bg-brand/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/3"></div>
-            </div>
+            <PageHeader
+                eyebrow="Our Story"
+                title="Community First"
+                subtitle="We founded Community Focus of NC with a simple belief: HOAs should build communities, not just collect dues. We believe in transparency, responsiveness, and treating every homeowner with respect."
+            />
 
-            <div className="container mx-auto px-6">
-                {/* 2. Values Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-24">
-                    <Reveal delay={0.1}>
-                        <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 text-center hover:-translate-y-1 transition-transform h-full">
-                            <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center mx-auto mb-4 text-brand">
-                                <Shield className="w-6 h-6" />
-                            </div>
-                            <h3 className="text-lg font-bold text-slate-800 mb-2">Integrity</h3>
-                            <p className="text-slate-600">We operate with complete financial transparency. No hidden fees, no surprises.</p>
-                        </div>
-                    </Reveal>
-                    <Reveal delay={0.2}>
-                        <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 text-center hover:-translate-y-1 transition-transform h-full">
-                            <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center mx-auto mb-4 text-brand">
-                                <Users className="w-6 h-6" />
-                            </div>
-                            <h3 className="text-lg font-bold text-slate-800 mb-2">Communication</h3>
-                            <p className="text-slate-600">We answer the phone. We reply to emails. We are here when you need us.</p>
-                        </div>
-                    </Reveal>
-                    <Reveal delay={0.3}>
-                        <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 text-center hover:-translate-y-1 transition-transform h-full">
-                            <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center mx-auto mb-4 text-brand">
-                                <Heart className="w-6 h-6" />
-                            </div>
-                            <h3 className="text-lg font-bold text-slate-800 mb-2">Care</h3>
-                            <p className="text-slate-600">We treat your neighborhood like it's our own, focusing on long-term value.</p>
-                        </div>
-                    </Reveal>
-                </div>
+            <div className="container mx-auto px-6 pt-20">
+                {/* Values Grid — stagger reveal */}
+                <Reveal width="100%" stagger>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-24">
+                        {[
+                            {
+                                icon: Shield,
+                                title: "Integrity",
+                                desc: "We operate with complete financial transparency. No hidden fees, no surprises."
+                            },
+                            {
+                                icon: Users,
+                                title: "Communication",
+                                desc: "We answer the phone. We reply to emails. We are here when you need us."
+                            },
+                            {
+                                icon: Heart,
+                                title: "Care",
+                                desc: "We treat your neighborhood like it's our own, focusing on long-term value."
+                            },
+                        ].map((value, idx) => (
+                            <RevealItem key={idx}>
+                                <div className="group bg-white p-8 rounded-2xl shadow-sm border border-slate-100 text-center hover:shadow-card-hover hover:border-brand/20 transition-all duration-300 h-full relative overflow-hidden">
+                                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-brand via-brand-accent to-brand-gold opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                                    <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center mx-auto mb-4 text-brand group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
+                                        <value.icon className="w-6 h-6" />
+                                    </div>
+                                    <h3 className="text-lg font-bold text-slate-800 mb-2">{value.title}</h3>
+                                    <p className="text-slate-600">{value.desc}</p>
+                                </div>
+                            </RevealItem>
+                        ))}
+                    </div>
+                </Reveal>
 
-                {/* 3. TEAM SECTION */}
+                {/* Team Section */}
                 <div className="mb-20">
                     <div className="text-center mb-16">
                         <Reveal width="100%">
                             <div className="flex flex-col items-center">
-                                <h2 className="text-3xl font-bold text-slate-800 mb-4">Our Team</h2>
-                                <div className="w-16 h-1 bg-brand rounded-full mb-4"></div>
+                                <span className="text-brand-gold font-bold tracking-wider uppercase text-xs mb-4">
+                                    The Experts Behind the Work
+                                </span>
+                                <h2 className="text-3xl font-bold mb-4">
+                                    <span className="text-gradient">Our Team</span>
+                                </h2>
+                                <div className="w-16 h-1 bg-brand rounded-full mb-4" />
                                 <p className="text-slate-500 max-w-2xl text-center">
                                     The dedicated professionals working every day to support your community.
                                 </p>
@@ -215,7 +210,7 @@ export default function AboutPage() {
                         </Reveal>
                     </div>
 
-                    {/* A. President Section (Centered) */}
+                    {/* President */}
                     <div className="flex justify-center mb-12">
                         <div className="w-full md:w-[calc(33.333%-1.5rem)] min-w-[300px] max-w-sm">
                             <Reveal delay={0}>
@@ -224,11 +219,11 @@ export default function AboutPage() {
                         </div>
                     </div>
 
-                    {/* B. Staff Grid (Sorted Alphabetically by Last Name) */}
+                    {/* Staff Grid */}
                     <div className="flex flex-wrap justify-center gap-8">
                         {staff.map((member, idx) => (
                             <div key={idx} className="w-full md:w-[calc(33.333%-1.5rem)] min-w-[300px] max-w-sm">
-                                <Reveal delay={0.1 + (idx * 0.05)}>
+                                <Reveal delay={0.05 + (idx * 0.05)}>
                                     <TeamCard member={member} />
                                 </Reveal>
                             </div>
