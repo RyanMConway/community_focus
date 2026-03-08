@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from '@clerk/nextjs';
-import { Inter, Merriweather } from "next/font/google";
-import { Toaster } from 'react-hot-toast'; // Kept the new Toast library
+import { Inter, Outfit } from "next/font/google";
+import { Toaster } from 'react-hot-toast';
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -11,15 +11,30 @@ import PageTransition from "@/components/PageTransition";
 
 // Setup Google Fonts
 const inter = Inter({ subsets: ["latin"], variable: '--font-inter' });
-const merriweather = Merriweather({
-    weight: ['400', '700'],
+// Reuses --font-serif so all font-serif Tailwind classes pick up Outfit without component changes
+const outfit = Outfit({
+    weight: ['400', '500', '600', '700', '800'],
     subsets: ["latin"],
-    variable: '--font-serif'
+    variable: '--font-serif',
 });
 
 export const metadata: Metadata = {
-    title: "Community Focus of NC",
-    description: "Professional Association Management in North Carolina",
+  title: {
+    default: 'Community Focus of NC',
+    template: '%s | Community Focus of NC',
+  },
+  description:
+    'Professional HOA and community association management across the Triangle area of North Carolina. Serving 30+ communities with transparency, modern technology, and a personal touch.',
+  metadataBase: new URL('https://www.communityfocusnc.com'),
+  openGraph: {
+    siteName: 'Community Focus of NC',
+    locale: 'en_US',
+    type: 'website',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({
@@ -30,7 +45,7 @@ export default function RootLayout({
     return (
         <ClerkProvider>
             <html lang="en">
-                <body className={`${inter.variable} ${merriweather.variable} font-sans flex flex-col min-h-screen`}>
+                <body className={`${inter.variable} ${outfit.variable} font-sans flex flex-col min-h-screen`}>
 
                     {/* 1. Add the Toaster for Admin notifications */}
                     <Toaster
