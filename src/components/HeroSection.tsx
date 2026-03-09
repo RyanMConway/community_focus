@@ -63,8 +63,8 @@ export default function HeroSection() {
         offset: ['start start', 'end start'],
     });
 
-    const contentOpacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
-    const contentY = useTransform(scrollYProgress, [0, 0.5], ['0%', '-8%']);
+    const contentOpacity = useTransform(scrollYProgress, [0.25, 0.75], [1, 0]);
+    const contentY = useTransform(scrollYProgress, [0.25, 0.75], ['0%', '-8%']);
 
     return (
         <div
