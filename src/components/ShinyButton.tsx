@@ -10,12 +10,12 @@ interface Props {
 export default function ShinyButton({ href, children, className = "", variant = 'primary' }: Props) {
 
     // Define base styles that apply to both variants
-    const baseStyles = "relative group overflow-hidden font-bold py-4 px-8 rounded-full shadow-glow hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 inline-block";
+    const baseStyles = "relative group overflow-hidden font-semibold py-4 px-8 rounded-full shadow-glow hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 inline-block";
 
     // Define color-specific styles
     const variants = {
-        primary: "bg-brand text-white",
-        secondary: "bg-white text-brand"
+        primary: "bg-brand text-brand-dark",
+        secondary: "bg-transparent text-brand border-2 border-brand hover:bg-brand hover:text-brand-dark"
     };
 
     return (
@@ -23,15 +23,8 @@ export default function ShinyButton({ href, children, className = "", variant = 
             href={href}
             className={`${baseStyles} ${variants[variant]} ${className}`}
         >
-            {/* THE SHINE LAYER
-                - Adjusted for the secondary variant to be subtle gray instead of white
-            */}
-            <div className={`absolute inset-0 -translate-x-full group-hover:animate-shimmer-slide -skew-x-12 z-10 w-full h-full 
-                ${variant === 'primary'
-                ? 'bg-gradient-to-r from-transparent via-white/70 to-transparent'
-                : 'bg-gradient-to-r from-transparent via-slate-200/50 to-transparent' // Darker shine for white button
-            }
-            `}></div>
+            {/* Shimmer shine overlay */}
+            <div className="absolute inset-0 -translate-x-full group-hover:animate-shimmer-slide -skew-x-12 z-10 w-full h-full bg-gradient-to-r from-transparent via-white/30 to-transparent"></div>
 
             {/* The Text */}
             <span className="relative z-20">{children}</span>

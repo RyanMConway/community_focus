@@ -47,7 +47,7 @@ function AnimatedCounter({ value, suffix }: { value: number; suffix: string }) {
 
 export default function StatsBar() {
     return (
-        <div className="relative bg-slate-900 py-20 overflow-hidden">
+        <div className="relative bg-brand-dark py-20 overflow-hidden">
             {/* Animated gradient mesh background */}
             <div className="absolute inset-0 bg-gradient-mesh opacity-60" />
 
@@ -64,11 +64,11 @@ export default function StatsBar() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-12 md:gap-8 text-center">
                     {STATS.map((stat, i) => (
                         <div key={i} className="group">
-                            <div className="text-5xl md:text-6xl font-bold text-white mb-2 tracking-tight">
+                            <div className="text-5xl md:text-6xl font-bold text-brand-gold mb-2 tracking-tight">
                                 <AnimatedCounter value={stat.value} suffix={stat.suffix} />
                             </div>
-                            <div className="text-lg font-semibold text-brand-accent mb-1">{stat.label}</div>
-                            <div className="text-sm text-slate-400">{stat.description}</div>
+                            <div className="text-lg font-semibold text-brand-snow mb-1">{stat.label}</div>
+                            <div className="text-sm text-brand-snow/60">{stat.description}</div>
 
                             {/* Gold underline that grows on hover */}
                             <div className="mx-auto mt-4 h-0.5 w-8 bg-brand-gold/40 group-hover:w-16 transition-all duration-500 rounded-full" />

@@ -54,12 +54,25 @@ export default function CommunityList({ communities }: { communities: Community[
                 {filtered.map((community, index) => (
                     <Reveal key={community.id} delay={index * 0.05}>
                         <Link href={`/communities/${community.slug}`} className="block group h-full">
-                            <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 h-full flex flex-col">
-                                {/* Image Placeholder */}
-                                <div className="h-48 bg-slate-200 relative overflow-hidden">
-                                    <div className="absolute inset-0 bg-brand/5 flex items-center justify-center text-brand/20 group-hover:bg-brand/10 transition-colors">
-                                        <MapPin className="w-16 h-16" />
+                            <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-glow hover:-translate-y-1 hover:border-brand/20 transition-all duration-300 h-full flex flex-col">
+                                {/* Rich gradient image area */}
+                                <div className="h-48 bg-gradient-to-br from-brand-dark via-brand-canopy to-brand relative overflow-hidden">
+                                    <div className="absolute inset-0 bg-grid-white opacity-10" />
+                                    {/* Monogram */}
+                                    <div className="absolute bottom-4 left-4">
+                                        <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center">
+                                            <span className="text-white font-bold text-lg">{community.name.charAt(0)}</span>
+                                        </div>
                                     </div>
+                                    {/* City badge */}
+                                    {community.city && (
+                                        <div className="absolute top-3 right-3 flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/30 backdrop-blur-sm">
+                                            <MapPin className="w-2.5 h-2.5 text-brand-accent" />
+                                            <span className="text-white/90 text-xs font-medium">{community.city}</span>
+                                        </div>
+                                    )}
+                                    {/* Subtle decorative orb */}
+                                    <div className="absolute -top-8 -right-8 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
                                 </div>
 
                                 <div className="p-6 flex-1 flex flex-col">

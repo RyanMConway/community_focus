@@ -48,8 +48,8 @@ export default function Testimonials({ reviews }: { reviews: Review[] }) {
                 ))}
             </div>
             {/* Fade edges */}
-            <div className="absolute top-0 left-0 h-full w-24 bg-gradient-to-r from-slate-50 to-transparent z-10"></div>
-            <div className="absolute top-0 right-0 h-full w-24 bg-gradient-to-l from-slate-50 to-transparent z-10"></div>
+            <div className="absolute top-0 left-0 h-full w-24 bg-gradient-to-r from-[#0D1F17] to-transparent z-10"></div>
+            <div className="absolute top-0 right-0 h-full w-24 bg-gradient-to-l from-[#0D1F17] to-transparent z-10"></div>
         </div>
     );
 }

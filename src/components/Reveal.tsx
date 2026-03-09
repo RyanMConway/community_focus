@@ -21,7 +21,7 @@ export default function Reveal({
     stagger = false,
 }: Props) {
     const ref = useRef(null);
-    const isInView = useInView(ref, { once: true, margin: "-75px" });
+    const isInView = useInView(ref, { once: true, margin: "-50px" });
     const mainControls = useAnimation();
 
     useEffect(() => {
@@ -32,7 +32,7 @@ export default function Reveal({
 
     const hiddenState = direction === 'left'
         ? { opacity: 0, x: -40 }
-        : { opacity: 0, y: 75 };
+        : { opacity: 0, y: 20 };
 
     const visibleState = direction === 'left'
         ? { opacity: 1, x: 0 }
@@ -44,7 +44,7 @@ export default function Reveal({
                 <motion.div
                     variants={{
                         hidden: {},
-                        visible: { transition: { staggerChildren: 0.12, delayChildren: delay } },
+                        visible: { transition: { staggerChildren: 0.08, delayChildren: delay } },
                     }}
                     initial="hidden"
                     animate={mainControls}
@@ -65,7 +65,7 @@ export default function Reveal({
                 }}
                 initial="hidden"
                 animate={mainControls}
-                transition={{ duration: 0.5, delay, ease: "easeOut" }}
+                transition={{ duration: 0.6, delay, ease: "easeOut" }}
                 className="h-full"
             >
                 {children}
@@ -85,8 +85,8 @@ export function RevealItem({
     return (
         <motion.div
             variants={{
-                hidden: { opacity: 0, y: 40 },
-                visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
+                hidden: { opacity: 0, y: 20 },
+                visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } },
             }}
             className={className}
         >
