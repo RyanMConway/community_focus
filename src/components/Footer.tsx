@@ -1,8 +1,9 @@
 "use client"; // <--- Now a Client Component
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation'; // <--- Hook to check current page
-import { Mail, Phone, MapPin, Facebook, Linkedin, ArrowRight } from 'lucide-react';
+import { Mail, Phone, MapPin, ArrowRight } from 'lucide-react';
 import ShinyButton from './ShinyButton';
 
 export default function Footer() {
@@ -12,23 +13,23 @@ export default function Footer() {
     const showCTA = !pathname?.startsWith('/admin');
 
     return (
-        <footer className={`relative bg-slate-900 pt-20 text-slate-300 transition-all ${showCTA ? 'mt-32' : 'mt-0'}`}>
+        <footer className={`relative bg-brand-canopy pt-20 text-brand-snow/60 transition-all ${showCTA ? 'mt-32' : 'mt-0'}`}>
 
             {/* --- FLOATING CTA CARD (Conditionally Rendered) --- */}
             {showCTA && (
                 <div className="absolute -top-20 left-0 w-full px-4">
                     <div className="container mx-auto">
-                        <div className="relative overflow-hidden rounded-3xl bg-brand p-6 md:p-8 shadow-2xl shadow-brand/40 flex flex-col md:flex-row items-center justify-between gap-6">
+                        <div className="relative overflow-hidden rounded-3xl bg-brand p-6 md:p-8 shadow-2xl shadow-brand/20 flex flex-col md:flex-row items-center justify-between gap-6">
 
                             {/* Background Pattern on Card */}
                             <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
 
                             <div className="relative z-10">
-                                <h2 className="text-2xl font-serif font-bold text-white mb-1">
+                                <h2 className="text-2xl font-serif font-bold text-brand-dark mb-1">
                                     Ready to upgrade your community?
                                 </h2>
-                                <p className="text-blue-100 text-base">
-                                    Let's discuss how we can bring transparency to your board.
+                                <p className="text-brand-dark/70 text-base">
+                                    Let&apos;s discuss how we can bring transparency to your board.
                                 </p>
                             </div>
 
@@ -50,28 +51,27 @@ export default function Footer() {
 
                     {/* Brand Column */}
                     <div className="space-y-6">
-                        <div className="flex items-center gap-2 text-white">
-                            <div className="bg-white/10 p-1.5 rounded-lg border border-white/10">
-                                <span className="font-bold text-lg">CF</span>
-                            </div>
-                            <span className="text-xl font-serif font-bold tracking-tight">Community Focus</span>
+                        <div className="flex items-center gap-3">
+                            {/* Circle icon mark — brightness-0 invert makes it white on dark footer */}
+                            <Image
+                                src="/circle-icon.jpg"
+                                alt="Community Focus of NC"
+                                width={40}
+                                height={40}
+                                className="w-10 h-10 object-contain brightness-0 invert flex-shrink-0"
+                            />
+                            <span className="text-xl font-serif font-bold text-brand-snow tracking-tight leading-tight">
+                                Community<br />Focus of NC
+                            </span>
                         </div>
-                        <p className="text-sm leading-relaxed text-slate-400">
+                        <p className="text-sm leading-relaxed text-brand-snow/60">
                             Professional association management dedicated to transparency, communication, and preserving property values across North Carolina.
                         </p>
-                        <div className="flex gap-4 pt-2">
-                            <a href="#" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-brand hover:text-white transition-all hover:scale-110">
-                                <Facebook className="w-5 h-5" />
-                            </a>
-                            <a href="#" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-brand hover:text-white transition-all hover:scale-110">
-                                <Linkedin className="w-5 h-5" />
-                            </a>
-                        </div>
                     </div>
 
                     {/* Quick Links */}
                     <div>
-                        <h4 className="text-white font-bold mb-6">Company</h4>
+                        <h4 className="text-brand-snow font-bold mb-6">Company</h4>
                         <ul className="space-y-4 text-sm">
                             {['Home', 'About Us', 'Services', 'Communities'].map((item) => (
                                 <li key={item}>
@@ -88,7 +88,7 @@ export default function Footer() {
 
                     {/* Services */}
                     <div>
-                        <h4 className="text-white font-bold mb-6">Services</h4>
+                        <h4 className="text-brand-snow font-bold mb-6">Services</h4>
                         <ul className="space-y-4 text-sm">
                             {['Financial Management', 'Property Maintenance', 'Administrative Support', 'Consulting'].map((item) => (
                                 <li key={item} className="hover:text-white hover:translate-x-1 transition-all cursor-pointer inline-flex">
@@ -100,7 +100,7 @@ export default function Footer() {
 
                     {/* Contact Info */}
                     <div>
-                        <h4 className="text-white font-bold mb-6">Contact</h4>
+                        <h4 className="text-brand-snow font-bold mb-6">Contact</h4>
                         <ul className="space-y-4 text-sm">
                             <li className="flex items-start gap-3">
                                 <MapPin className="w-5 h-5 text-brand mt-0.5" />
@@ -119,8 +119,8 @@ export default function Footer() {
                 </div>
             </div>
 
-            <div className="border-t border-white/5 bg-black/20">
-                <div className="container mx-auto px-4 py-6 flex flex-col md:flex-row justify-between items-center text-xs text-slate-500">
+            <div className="border-t border-brand-edge bg-brand-dark/40">
+                <div className="container mx-auto px-4 py-6 flex flex-col md:flex-row justify-between items-center text-xs text-brand-snow/40">
                     <p>© {new Date().getFullYear()} Community Focus of NC, Inc. All rights reserved.</p>
                     <div className="flex gap-6 mt-4 md:mt-0">
                         <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>

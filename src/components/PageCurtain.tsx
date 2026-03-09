@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function PageCurtain() {
@@ -27,9 +28,14 @@ export default function PageCurtain() {
                         transition={{ duration: 0.25, delay: 0.1 }}
                         className="flex flex-col items-center gap-3 select-none"
                     >
-                        <div className="w-14 h-14 rounded-2xl border border-white/20 bg-white/5 flex items-center justify-center">
-                            <span className="text-white font-bold text-2xl tracking-tight font-serif">CF</span>
-                        </div>
+                        <Image
+                            src="/magnifying-glass-icon.jpg"
+                            alt="Community Focus of NC"
+                            width={72}
+                            height={72}
+                            className="w-18 h-18 object-contain invert mix-blend-screen"
+                            priority
+                        />
                         <div className="flex gap-0.5">
                             {['C','o','m','m','u','n','i','t','y',' ','F','o','c','u','s'].map((ch, i) => (
                                 <motion.span

@@ -39,41 +39,41 @@ export default function Navbar() {
         <nav
             className={`fixed w-full top-0 z-50 transition-all duration-500
             ${showSolidNav
-                ? 'bg-white/80 backdrop-blur-xl border-b border-slate-200/40 shadow-[0_1px_24px_0_rgba(0,0,0,0.06)]'
+                ? 'bg-brand-dark/95 backdrop-blur-xl border-b border-brand-edge shadow-lg'
                 : 'bg-transparent border-b border-transparent'
             }`}
         >
             <div className="container mx-auto px-4 h-20 flex items-center justify-between">
 
                 {/* LOGO AREA - Hybrid Switcher */}
-                <Link href="/" onClick={closeMenu} className="relative h-10 w-auto min-w-[200px] flex items-center group">
+                <Link href="/" onClick={closeMenu} className="relative h-14 w-auto min-w-[220px] flex items-center group">
 
-                    {/* STATE 1: Logo Image (Visible ONLY when Scrolled/White BG) */}
-                    {/* The white background of the JPG/PNG will blend with the white navbar. */}
+                    {/* Solid nav state: white logo on dark green nav */}
                     <div className={`absolute left-0 top-1/2 -translate-y-1/2 transition-all duration-300 origin-left
                         ${showSolidNav ? 'opacity-100 scale-100 visible' : 'opacity-0 scale-95 invisible'}
                     `}>
                         <Image
-                            src="/logo.jpg"
-                            alt="Community Focus"
-                            width={180}
-                            height={50}
-                            className="h-10 w-auto object-contain object-left"
+                            src="/logo.png"
+                            alt="Community Focus of NC"
+                            width={220}
+                            height={60}
+                            className="h-14 w-auto object-contain object-left brightness-0 invert drop-shadow-sm"
                             priority
                         />
                     </div>
 
-                    {/* STATE 2: Text Brand (Visible ONLY when Transparent/Blue BG) */}
-                    {/* This ensures no "White Box" boxiness on the blue hero. */}
-                    <div className={`absolute left-0 top-1/2 -translate-y-1/2 flex items-center gap-3 transition-all duration-300 origin-left
+                    {/* Transparent/hero state: white logo — no white box on blue hero */}
+                    <div className={`absolute left-0 top-1/2 -translate-y-1/2 transition-all duration-300 origin-left
                         ${showSolidNav ? 'opacity-0 scale-95 invisible' : 'opacity-100 scale-100 visible'}
                     `}>
-                        <div className="bg-white/15 backdrop-blur-md p-2 rounded-lg border border-white/20 shadow-sm group-hover:bg-white/25 transition-colors">
-                            <span className="font-bold text-white text-lg leading-none tracking-tight">CF</span>
-                        </div>
-                        <span className="text-xl font-serif font-bold text-white tracking-wide drop-shadow-sm whitespace-nowrap">
-                            Community Focus
-                        </span>
+                        <Image
+                            src="/logo.png"
+                            alt="Community Focus of NC"
+                            width={220}
+                            height={60}
+                            className="h-14 w-auto object-contain object-left brightness-0 invert drop-shadow-sm"
+                            priority
+                        />
                     </div>
 
                 </Link>
@@ -88,8 +88,8 @@ export default function Navbar() {
                                 href={item.href}
                                 className={`relative font-medium transition-colors text-sm group
                                     ${isActive
-                                        ? showSolidNav ? 'text-brand' : 'text-white'
-                                        : showSolidNav ? 'text-slate-600 hover:text-brand' : 'text-slate-200 hover:text-white'
+                                        ? 'text-brand'
+                                        : showSolidNav ? 'text-brand-snow/70 hover:text-brand-snow' : 'text-slate-200 hover:text-white'
                                     }
                                 `}
                             >
@@ -108,7 +108,7 @@ export default function Navbar() {
 
                 {/* Mobile Menu Button */}
                 <button
-                    className={`lg:hidden focus:outline-none ${showSolidNav ? 'text-slate-800' : 'text-slate-800 md:text-white'}`}
+                    className={`lg:hidden focus:outline-none ${showSolidNav ? 'text-brand-snow' : 'text-slate-800 md:text-white'}`}
                     onClick={() => setIsOpen(!isOpen)}
                 >
                     {isOpen ? <X className="w-8 h-8" /> : <Menu className="w-8 h-8" />}
@@ -117,14 +117,14 @@ export default function Navbar() {
 
             {/* Mobile Menu Dropdown */}
             {isOpen && (
-                <div className="lg:hidden bg-white border-t border-gray-100 absolute w-full shadow-lg h-screen top-20 left-0">
+                <div className="lg:hidden bg-brand-dark border-t border-brand-edge absolute w-full shadow-lg h-screen top-20 left-0">
                     <div className="flex flex-col p-6 space-y-6 pt-12">
                         {NAV_ITEMS.map((item) => (
                             <Link
                                 key={item.label}
                                 href={item.href}
                                 onClick={closeMenu}
-                                className="text-slate-800 hover:text-brand font-medium text-2xl font-serif"
+                                className="text-brand-snow hover:text-brand font-medium text-2xl font-serif"
                             >
                                 {item.label}
                             </Link>
