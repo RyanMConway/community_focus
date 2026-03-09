@@ -2,8 +2,8 @@
 @config "../../tailwind.config.ts";
 
 :root {
-  --background: #ffffff;
-  --foreground: #0f172a; /* Darker slate for better contrast */
+  --background: #F9FAFB;
+  --foreground: #0D1F17;
 }
 
 body {
@@ -21,16 +21,14 @@ body {
   linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
 }
 
-/* Animated gradient mesh — used as hero overlay */
+/* Gradient mesh — used as hero overlay */
 .bg-gradient-mesh {
-  background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 30%, #0c4a6e 60%, #0f172a 100%);
-  background-size: 300% 300%;
-  animation: gradient-shift 8s ease infinite;
+  background: radial-gradient(ellipse at 50% 0%, #132D1F 0%, #0D1F17 100%);
 }
 
 /* Gradient text utility */
 .text-gradient {
-  background: linear-gradient(135deg, #2563eb 0%, #38bdf8 50%, #93c5fd 100%);
+  background: linear-gradient(135deg, #10B981 0%, #34D399 50%, #6EE7B7 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;

@@ -10,54 +10,36 @@ const config: Config = {
         extend: {
             colors: {
                 brand: {
-                    dark: '#0B1120',
-                    DEFAULT: '#2563eb',
-                    light: '#eff6ff',
-                    accent: '#38bdf8',
-                    gold: '#f59e0b',
+                    dark: '#0D1F17',       // Forest Night
+                    DEFAULT: '#10B981',    // Emerald
+                    light: '#EFF5F2',      // Sage Mist
+                    accent: '#10B981',     // Emerald — alias kept for backward compat with text-brand-accent classes
+                    gold: '#D4A853',       // Warm Gold
+                    canopy: '#132D1F',     // Deep Canopy
+                    edge: '#1E4030',       // Canopy Edge
+                    snow: '#F0F7F4',       // Snow white
+                    sage: '#EFF5F2',       // Sage Mist
                 },
             },
             backgroundImage: {
-                // More complex, rich gradient for the hero
-                'hero-gradient': 'radial-gradient(circle at 50% 0%, #1e40af 0%, #0f172a 60%, #020617 100%)',
+                'hero-gradient': 'radial-gradient(ellipse at 50% 0%, #132D1F 0%, #0D1F17 60%, #081510 100%)',
                 'card-gradient': 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
-                'blue-shine': 'linear-gradient(135deg, #2563eb 0%, #38bdf8 100%)',
+                'emerald-shine': 'linear-gradient(135deg, #10B981 0%, #34D399 100%)',
             },
             boxShadow: {
-                // Colored shadows create a more premium feel than gray ones
-                'glow': '0 0 20px -5px rgba(37, 99, 235, 0.4)',
-                'card': '0 10px 30px -10px rgba(0,0,0,0.08)',
-                'card-hover': '0 20px 40px -10px rgba(37, 99, 235, 0.1)',
+                'glow': '0 0 20px -5px rgba(16, 185, 129, 0.4)',
+                'card': '0 10px 30px -10px rgba(0, 0, 0, 0.08)',
+                'card-hover': '0 20px 40px -10px rgba(16, 185, 129, 0.12)',
+                'emerald-glow': '0 0 24px rgba(16, 185, 129, 0.2)',
             },
             keyframes: {
                 'shimmer-slide': {
                     '0%': { transform: 'translateX(-100%)' },
                     '100%': { transform: 'translateX(100%)' },
                 },
-                'float': {
-                    '0%, 100%': { transform: 'translateY(0)' },
-                    '50%': { transform: 'translateY(-20px)' },
-                },
-                'float-delayed': {
-                    '0%, 100%': { transform: 'translateY(0)' },
-                    '50%': { transform: 'translateY(-15px)' },
-                },
                 'infinite-scroll': {
                     from: { transform: 'translateX(0)' },
                     to: { transform: 'translateX(-50%)' },
-                },
-                'shimmy': {
-                    '0%, 100%': { transform: 'translateX(0)' },
-                    '15%': { transform: 'translateX(-4px) rotate(-4deg)' },
-                    '30%': { transform: 'translateX(4px) rotate(4deg)' },
-                    '45%': { transform: 'translateX(-4px) rotate(-4deg)' },
-                    '60%': { transform: 'translateX(4px) rotate(4deg)' },
-                    '75%': { transform: 'translateX(-2px) rotate(-2deg)' },
-                },
-                'gradient-shift': {
-                    '0%': { backgroundPosition: '0% 50%' },
-                    '50%': { backgroundPosition: '100% 50%' },
-                    '100%': { backgroundPosition: '0% 50%' },
                 },
                 'count-up': {
                     from: { opacity: '0', transform: 'translateY(8px)' },
@@ -66,11 +48,7 @@ const config: Config = {
             },
             animation: {
                 'shimmer-slide': 'shimmer-slide 0.8s ease-in-out infinite',
-                'float': 'float 6s ease-in-out infinite',
-                'float-delayed': 'float-delayed 7s ease-in-out infinite 1s',
                 'infinite-scroll': 'infinite-scroll 40s linear infinite',
-                'shimmy': 'shimmy 0.8s ease-in-out both',
-                'gradient-shift': 'gradient-shift 8s ease infinite',
                 'count-up': 'count-up 0.6s ease-out forwards',
             },
 
