@@ -58,7 +58,7 @@ export default function Footer() {
                                 alt="Community Focus of NC"
                                 width={40}
                                 height={40}
-                                className="w-10 h-10 object-contain brightness-0 invert flex-shrink-0"
+                                className="w-10 h-10 object-contain invert mix-blend-screen flex-shrink-0"
                             />
                             <span className="text-xl font-serif font-bold text-brand-snow tracking-tight leading-tight">
                                 Community<br />Focus of NC
