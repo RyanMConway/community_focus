@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
@@ -108,35 +109,48 @@ export default function Navbar() {
 
                 {/* Mobile Menu Button */}
                 <button
-                    className={`lg:hidden focus:outline-none ${showSolidNav ? 'text-brand-snow' : 'text-slate-800 md:text-white'}`}
+                    className={`lg:hidden focus:outline-none focus:ring-2 focus:ring-brand rounded-md p-1 ${showSolidNav ? 'text-brand-snow focus:ring-offset-2 focus:ring-offset-brand-dark' : 'text-slate-800 md:text-white focus:ring-offset-0'}`}
                     onClick={() => setIsOpen(!isOpen)}
+                    aria-expanded={isOpen}
+                    aria-controls="mobile-menu"
+                    aria-label={isOpen ? 'Close navigation menu' : 'Open navigation menu'}
                 >
                     {isOpen ? <X className="w-8 h-8" /> : <Menu className="w-8 h-8" />}
                 </button>
             </div>
 
             {/* Mobile Menu Dropdown */}
-            {isOpen && (
-                <div className="lg:hidden bg-brand-dark border-t border-brand-edge absolute w-full shadow-lg h-screen top-20 left-0">
-                    <div className="flex flex-col p-6 space-y-6 pt-12">
-                        {NAV_ITEMS.map((item) => (
-                            <Link
-                                key={item.label}
-                                href={item.href}
-                                onClick={closeMenu}
-                                className="text-brand-snow hover:text-brand font-medium text-2xl font-serif"
-                            >
-                                {item.label}
-                            </Link>
-                        ))}
-                        <div onClick={closeMenu} className="pt-4">
-                            <ShinyButton href="/contact" className="w-full text-center justify-center flex">
-                                Contact Us
-                            </ShinyButton>
+            <AnimatePresence>
+                {isOpen && (
+                    <motion.div
+                        id="mobile-menu"
+                        aria-label="Mobile navigation"
+                        initial={{ opacity: 0, y: -8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -8 }}
+                        transition={{ duration: 0.2, ease: 'easeOut' }}
+                        className="lg:hidden bg-brand-dark border-t border-brand-edge absolute w-full shadow-lg h-screen top-20 left-0"
+                    >
+                        <div className="flex flex-col p-6 space-y-6 pt-12">
+                            {NAV_ITEMS.map((item) => (
+                                <Link
+                                    key={item.label}
+                                    href={item.href}
+                                    onClick={closeMenu}
+                                    className="text-brand-snow hover:text-brand font-medium text-2xl font-serif"
+                                >
+                                    {item.label}
+                                </Link>
+                            ))}
+                            <div onClick={closeMenu} className="pt-4">
+                                <ShinyButton href="/contact" className="w-full text-center justify-center flex">
+                                    Contact Us
+                                </ShinyButton>
+                            </div>
                         </div>
-                    </div>
-                </div>
-            )}
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </nav>
     );
 }

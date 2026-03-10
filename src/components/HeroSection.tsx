@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from 'react';
-import { motion, useScroll, useTransform } from 'framer-motion';
+import { motion, useScroll, useTransform, useReducedMotion } from 'framer-motion';
 import { CheckCircle2 } from 'lucide-react';
 import HomeQuestionnaire from '@/components/HomeQuestionnaire';
 
@@ -57,14 +57,15 @@ function GlowGroup({ text, className, index }: { text: string; className: string
 
 export default function HeroSection() {
     const heroRef = useRef<HTMLDivElement>(null);
+    const prefersReducedMotion = useReducedMotion();
 
     const { scrollYProgress } = useScroll({
         target: heroRef,
         offset: ['start start', 'end start'],
     });
 
-    const contentOpacity = useTransform(scrollYProgress, [0.25, 0.75], [1, 0]);
-    const contentY = useTransform(scrollYProgress, [0.25, 0.75], ['0%', '-8%']);
+    const contentOpacity = useTransform(scrollYProgress, [0.25, 0.75], prefersReducedMotion ? [1, 1] : [1, 0]);
+    const contentY = useTransform(scrollYProgress, [0.25, 0.75], prefersReducedMotion ? ['0%', '0%'] : ['0%', '-8%']);
 
     return (
         <div

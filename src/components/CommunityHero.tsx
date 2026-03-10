@@ -23,7 +23,7 @@ export default function CommunityHero({ name, city, description, image_url }: Co
     const imageY = useTransform(scrollYProgress, [0, 1], ['0%', '20%']);
 
     return (
-        <div ref={heroRef} className="relative h-[450px] w-full flex items-center justify-center overflow-hidden bg-brand-dark">
+        <div ref={heroRef} className="relative min-h-[280px] md:min-h-[380px] lg:min-h-[450px] w-full flex items-center justify-center overflow-hidden bg-brand-dark">
             {/* Parallax background */}
             {image_url ? (
                 <motion.div className="absolute inset-[-10%] z-0" style={{ y: imageY }}>
@@ -47,7 +47,7 @@ export default function CommunityHero({ name, city, description, image_url }: Co
             {/* Animated content */}
             <div className="relative z-10 text-center text-white px-6 max-w-4xl mx-auto">
                 <motion.div
-                    className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-xs font-medium mb-6 backdrop-blur-md"
+                    className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-xs font-medium mb-3 md:mb-6 backdrop-blur-md"
                     initial={{ opacity: 0, y: 16 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: 0.1 }}
@@ -57,7 +57,7 @@ export default function CommunityHero({ name, city, description, image_url }: Co
                 </motion.div>
 
                 <motion.h1
-                    className="text-5xl md:text-6xl font-serif font-bold mb-6 drop-shadow-lg tracking-tight"
+                    className="text-5xl md:text-6xl font-serif font-bold mb-3 md:mb-6 drop-shadow-lg tracking-tight"
                     initial={{ opacity: 0, y: 24 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6, delay: 0.2 }}
@@ -67,7 +67,7 @@ export default function CommunityHero({ name, city, description, image_url }: Co
 
                 {description && (
                     <motion.p
-                        className="text-xl text-blue-50/90 max-w-2xl mx-auto leading-relaxed font-light"
+                        className="text-base md:text-xl text-brand-snow/90 max-w-2xl mx-auto leading-relaxed font-light"
                         initial={{ opacity: 0, y: 24 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6, delay: 0.35 }}

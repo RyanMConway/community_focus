@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef, useEffect } from 'react';
 import { Quote, Star } from 'lucide-react';
 
 interface Review {
@@ -17,9 +18,26 @@ export default function Testimonials({ reviews }: { reviews: Review[] }) {
         { text: "Professional, transparent, and always available.", author_name: "James L.", rating: 5, relative_time_description: "Secretary" },
     ];
 
+    const scrollRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const el = scrollRef.current;
+        if (!el) return;
+
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                el.style.animationPlayState = entry.isIntersecting ? 'running' : 'paused';
+            },
+            { threshold: 0.1 }
+        );
+
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, []);
+
     return (
         <div className="relative w-full overflow-hidden mask-linear-fade">
-            <div className="flex gap-8 animate-infinite-scroll w-max py-4">
+            <div ref={scrollRef} className="flex gap-8 animate-infinite-scroll w-max py-4">
                 {/* Duplicate list for seamless loop */}
                 {[...displayReviews, ...displayReviews].map((t, i) => (
                     <div key={i} className="w-[350px] md:w-[450px] bg-white p-8 rounded-2xl shadow-sm border border-slate-100 flex-shrink-0 hover:shadow-md transition-shadow">

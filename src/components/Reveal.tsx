@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useInView, useAnimation } from "framer-motion";
+import { motion, useInView, useAnimation, useReducedMotion } from "framer-motion";
 import { useEffect, useRef } from "react";
 
 interface Props {
@@ -21,14 +21,15 @@ export default function Reveal({
     stagger = false,
 }: Props) {
     const ref = useRef(null);
+    const prefersReducedMotion = useReducedMotion();
     const isInView = useInView(ref, { once: true, margin: "-50px" });
     const mainControls = useAnimation();
 
     useEffect(() => {
-        if (isInView) {
+        if (isInView || prefersReducedMotion) {
             mainControls.start("visible");
         }
-    }, [isInView, mainControls]);
+    }, [isInView, mainControls, prefersReducedMotion]);
 
     const hiddenState = direction === 'left'
         ? { opacity: 0, x: -40 }

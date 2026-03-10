@@ -95,7 +95,7 @@ export default async function CommunityPage({ params }: { params: Promise<{ slug
             <div className="max-w-7xl mx-auto px-6 py-12 grid grid-cols-1 lg:grid-cols-3 gap-12 -mt-16 relative z-20">
 
                 {/* LEFT COLUMN: Manager card + Portal */}
-                <div className="space-y-8">
+                <div className="space-y-8 lg:sticky lg:top-28 lg:self-start">
                     <Reveal direction="left">
                         {/* Manager Card */}
                         <div className="bg-white p-6 rounded-2xl shadow-xl shadow-slate-200/50 border border-white/50 backdrop-blur-sm">
@@ -105,7 +105,7 @@ export default async function CommunityPage({ params }: { params: Promise<{ slug
                             {manager ? (
                                 <div className="space-y-4">
                                     <div className="flex items-center gap-4">
-                                        <div className="w-14 h-14 bg-gradient-to-br from-blue-100 to-blue-50 rounded-full flex items-center justify-center text-brand font-bold text-xl border border-blue-100">
+                                        <div className="w-14 h-14 bg-gradient-to-br from-emerald-100 to-emerald-50 rounded-full flex items-center justify-center text-brand font-bold text-xl border border-emerald-100">
                                             {manager.name.charAt(0)}
                                         </div>
                                         <div>
@@ -116,13 +116,13 @@ export default async function CommunityPage({ params }: { params: Promise<{ slug
                                     <hr className="border-slate-100 my-2" />
                                     <div className="space-y-3">
                                         <a href={`mailto:${manager.email}`} className="flex items-center gap-3 text-slate-600 hover:text-brand transition-colors group">
-                                            <div className="p-2 bg-slate-50 rounded-lg group-hover:bg-blue-50 transition-colors">
+                                            <div className="p-2 bg-slate-50 rounded-lg group-hover:bg-emerald-50 transition-colors">
                                                 <Mail className="w-4 h-4" />
                                             </div>
                                             <span className="text-sm font-medium">{manager.email}</span>
                                         </a>
                                         <a href={`tel:${manager.phone}`} className="flex items-center gap-3 text-slate-600 hover:text-brand transition-colors group">
-                                            <div className="p-2 bg-slate-50 rounded-lg group-hover:bg-blue-50 transition-colors">
+                                            <div className="p-2 bg-slate-50 rounded-lg group-hover:bg-emerald-50 transition-colors">
                                                 <Phone className="w-4 h-4" />
                                             </div>
                                             <span className="text-sm font-medium">{manager.phone}</span>
@@ -137,19 +137,19 @@ export default async function CommunityPage({ params }: { params: Promise<{ slug
 
                     {/* Resident Portal card */}
                     <Reveal delay={0.1}>
-                        <div className="relative bg-gradient-to-br from-brand to-brand-dark text-white p-6 rounded-2xl shadow-lg shadow-blue-500/20 overflow-hidden">
+                        <div className="relative bg-gradient-to-br from-brand to-brand-dark text-white p-6 rounded-2xl shadow-lg shadow-brand/20 overflow-hidden">
                             <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl" />
                             <div className="absolute inset-0 bg-grid-white opacity-10 pointer-events-none" />
 
                             <div className="relative z-10">
                                 <h3 className="font-bold mb-2 text-lg">Resident Portal</h3>
-                                <p className="text-blue-100 text-sm mb-6">
+                                <p className="text-brand-snow/80 text-sm mb-6">
                                     Pay dues, submit work orders, and view account history securely online.
                                 </p>
                                 <a
                                     href={community.portal_url || "https://cfnc.cincwebaxis.com/"}
                                     target="_blank"
-                                    className="block w-full bg-white text-brand text-center py-3 rounded-xl font-bold hover:bg-blue-50 transition-colors shadow-sm"
+                                    className="block w-full bg-white text-brand text-center py-3 rounded-xl font-bold hover:bg-emerald-50 transition-colors shadow-sm"
                                 >
                                     Log In to Portal
                                 </a>
@@ -181,15 +181,17 @@ export default async function CommunityPage({ params }: { params: Promise<{ slug
                                                         key={doc.id}
                                                         href={doc.file_url}
                                                         target="_blank"
-                                                        className="flex items-center justify-between px-6 py-4 hover:bg-blue-50/30 transition-colors group"
+                                                        rel="noopener noreferrer"
+                                                        className="flex items-center justify-between px-6 py-4 hover:bg-emerald-50/50 transition-colors group"
                                                     >
                                                         <div className="flex items-center gap-3">
-                                                            <div className="w-1.5 h-1.5 rounded-full bg-slate-300 group-hover:bg-brand transition-colors" />
+                                                            <div className="w-1.5 h-1.5 rounded-full bg-slate-300 group-hover:bg-brand transition-colors" aria-hidden="true" />
                                                             <span className="text-slate-600 font-medium group-hover:text-brand-dark transition-colors">
                                                                 {doc.title}
+                                                                <span className="sr-only"> (opens in new tab)</span>
                                                             </span>
                                                         </div>
-                                                        <div className="p-2 rounded-full text-slate-300 group-hover:text-brand group-hover:bg-blue-100/50 transition-all">
+                                                        <div className="p-2 rounded-full text-slate-300 group-hover:text-brand group-hover:bg-emerald-100/50 transition-all" aria-hidden="true">
                                                             <Download className="w-4 h-4" />
                                                         </div>
                                                     </a>

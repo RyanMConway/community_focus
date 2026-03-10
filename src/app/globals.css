@@ -14,6 +14,11 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Consistent readable line-height for body text */
+p {
+  line-height: 1.65;
+}
+
 /* Grid pattern overlay for hero */
 .bg-grid-white {
   background-size: 40px 40px;
@@ -32,4 +37,16 @@ body {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+}
+
+/* Respect prefers-reduced-motion for all CSS animations */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

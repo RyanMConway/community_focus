@@ -38,15 +38,15 @@ export default function AlertBanner({ message, type, startTime, endTime }: Props
     if (!shouldRender || !isVisible) return null;
 
     const styles = {
-        info: "bg-blue-600 text-white",
-        warning: "bg-amber-500 text-white",
+        info: "bg-emerald-700 text-white",
+        warning: "bg-amber-500 text-slate-900",
         emergency: "bg-red-600 text-white"
     };
 
     const icons = {
-        info: <Info className="w-5 h-5" />,
-        warning: <AlertTriangle className="w-5 h-5" />,
-        emergency: <AlertCircle className="w-5 h-5" />
+        info: <Info className="w-5 h-5" aria-hidden="true" />,
+        warning: <AlertTriangle className="w-5 h-5" aria-hidden="true" />,
+        emergency: <AlertCircle className="w-5 h-5" aria-hidden="true" />
     };
 
     const currentStyle = styles[type as keyof typeof styles] || styles.info;
@@ -61,9 +61,10 @@ export default function AlertBanner({ message, type, startTime, endTime }: Props
                 </div>
                 <button
                     onClick={() => setIsVisible(false)}
-                    className="p-1 hover:bg-white/20 rounded-full transition-colors"
+                    className="p-1 hover:bg-white/20 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-white"
+                    aria-label="Close alert"
                 >
-                    <X className="w-4 h-4" />
+                    <X className="w-4 h-4" aria-hidden="true" />
                 </button>
             </div>
         </div>

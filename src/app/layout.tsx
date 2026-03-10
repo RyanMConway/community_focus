@@ -67,11 +67,19 @@ export default function RootLayout({
                     {/* Page load curtain reveal */}
                     <PageCurtain />
 
+                    {/* Skip-to-main-content: visually hidden until focused by keyboard */}
+                    <a
+                        href="#main-content"
+                        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[9999] focus:bg-brand-dark focus:text-white focus:px-4 focus:py-2 focus:rounded-lg focus:font-bold focus:shadow-lg focus:outline-none"
+                    >
+                        Skip to main content
+                    </a>
+
                     <Navbar />
 
                     {/* Page transition wrapper */}
                     <PageTransition>
-                        <main className="flex-grow">
+                        <main id="main-content" tabIndex={-1} className="flex-grow focus:outline-none">
                             {children}
                         </main>
 

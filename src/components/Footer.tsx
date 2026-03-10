@@ -13,11 +13,11 @@ export default function Footer() {
     const showCTA = !pathname?.startsWith('/admin');
 
     return (
-        <footer className={`relative bg-brand-canopy pt-20 text-brand-snow/60 transition-all ${showCTA ? 'mt-32' : 'mt-0'}`}>
+        <footer className={`relative bg-brand-canopy pt-20 text-brand-snow/60 transition-all ${showCTA ? 'mt-24 sm:mt-28 md:mt-32' : 'mt-0'}`}>
 
             {/* --- FLOATING CTA CARD (Conditionally Rendered) --- */}
             {showCTA && (
-                <div className="absolute -top-20 left-0 w-full px-4">
+                <div className="absolute -top-12 sm:-top-16 md:-top-20 left-0 w-full px-4">
                     <div className="container mx-auto">
                         <div className="relative overflow-hidden rounded-3xl bg-brand p-6 md:p-8 shadow-2xl shadow-brand/20 flex flex-col md:flex-row items-center justify-between gap-6">
 
